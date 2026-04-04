@@ -151,7 +151,7 @@ with n_prev:
         st.session_state.answered = False
         st.rerun()
 with n_count:
-    st.markdown(f<div style='text-align: center;'><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></div>, unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center;'><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></div>", unsafe_allow_html=True)
 with n_next:
     if st.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
         st.session_state.indice += 1
