@@ -7,7 +7,7 @@ st.set_page_config(page_title="Simulatore Andromeda 4.0", layout="wide")
 
 # --- CONFIGURAZIONE GOOGLE SHEETS ---
 # Sostituisci il link qui sotto con quello che hai copiato dal tuo foglio Google
-URL_FOGLIO = "INCOLLA_QUI_IL_TUO_LINK_DI_GOOGLE_SHEETS"
+URL_FOGLIO = https://docs.google.com/spreadsheets/d/1gfus3uS8C_K-niCduLi_qiB323T82LdWEfyd68MzwWM/edit?gid=0#gid=0
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
