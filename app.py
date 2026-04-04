@@ -47,29 +47,28 @@ if 'stats' not in st.session_state:
     with st.spinner("Sincronizzazione dati..."):
         st.session_state.stats = carica_statistiche()
 
-if not st.session_state.stats:
-    for q in db: st.session_state.stats[str(q['id'])] = {"corrette": 0, "errate": 0, "cartella": "Calderone"}
+# FIX: IL CONTROLLO DI SICUREZZA
+# Ora l'app si assicura che TUTTE le 3000 domande abbiano il loro cassetto,
+# a prescindere da cosa c'era già nel foglio Google.
+for q in db: 
+    if str(q['id']) not in st.session_state.stats:
+        st.session_state.stats[str(q['id'])] = {"corrette": 0, "errate": 0, "cartella": "Calderone"}
 
 # --- SIDEBAR: FILTRI AVANZATI ---
 st.sidebar.title("⚙️ Pannello di Controllo")
 
-# 1. Ricerca Parola Chiave
 search_term = st.sidebar.text_input("🔍 Cerca parola (Testo o Opzioni):", "").lower()
 
-# 2. Ricerca Numeri Specifici
 ids_input = st.sidebar.text_input("🎯 ID specifici (es: 1, 5, 23):", "")
 specific_ids = [s.strip() for s in ids_input.split(",") if s.strip()]
 
-# 3. Ricerca Intervallo
 col1, col2 = st.sidebar.columns(2)
 start_range = col1.number_input("Da ID:", min_value=1, max_value=3000, value=1)
 end_range = col2.number_input("A ID:", min_value=1, max_value=3000, value=3000)
 
-# Altri Filtri
 moduli = sorted(list(set([str(q.get('modulo', 'N/A')) for q in db])))
 mod_scelto = st.sidebar.selectbox("Filtra Modulo:", ["Tutti"] + moduli)
 
-# 4. Cartelle Personalizzate
 cartelle_lista = ["Calderone", "Allenamento", "Campo scuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("📂 Filtra Cartella:", ["Tutte"] + cartelle_lista)
 
@@ -79,15 +78,10 @@ for q in db:
     q_id_str = str(q['id'])
     testo_completo = q['testo'].lower() + " ".join(q['opzioni'].values()).lower()
     
-    # Controllo ID specifici
     if specific_ids and q_id_str not in specific_ids: continue
-    # Controllo Intervallo
     if not (start_range <= int(q['id']) <= end_range): continue
-    # Controllo Parola Chiave
     if search_term and search_term not in testo_completo: continue
-    # Controllo Modulo
     if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
-    # Controllo Cartella
     if cart_scelta != "Tutte" and st.session_state.stats[q_id_str]["cartella"] != cart_scelta: continue
     
     domande_filtrate.append(q)
@@ -117,7 +111,6 @@ scelta = st.radio("Seleziona la risposta:", list(q['opzioni'].keys()),
                  format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", 
                  index=None, key=f"r_{q_id}")
 
-# Variabile di stato per mostrare il selettore cartella dopo l'azione
 if 'mostra_cartella' not in st.session_state: st.session_state.mostra_cartella = False
 
 col_a, col_b = st.columns(2)
@@ -135,26 +128,23 @@ with col_a:
 with col_b:
     if st.button("⏭️ Salta / Avanti", use_container_width=True):
         st.session_state.mostra_cartella = True
-        # Non salva statistiche di errore, ma attiva la scelta cartella
 
-# --- 5. LOGICA POSIZIONAMENTO CARTELLA (DOPO RISPOSTA O SALTO) ---
+# --- 5. LOGICA POSIZIONAMENTO CARTELLA ---
 if st.session_state.mostra_cartella:
     st.markdown("---")
     st.subheader("📂 Dove vuoi posizionare questa domanda?")
     attuale = st.session_state.stats[q_id]["cartella"]
     
-    # Pulsanti rapidi per le cartelle
     cols_cart = st.columns(4)
     for i, c_name in enumerate(cartelle_lista):
         if cols_cart[i].button(f"{c_name}", key=f"btn_{c_name}", type="primary" if attuale == c_name else "secondary"):
             st.session_state.stats[q_id]["cartella"] = c_name
             salva_statistiche(st.session_state.stats)
             st.toast(f"Spostata in {c_name}")
-            st.session_state.mostra_cartella = False # Nasconde i tasti cartella dopo la scelta
+            st.session_state.mostra_cartella = False
             st.rerun()
 
 st.write("---")
-# Pulsanti navigazione
 nav_prev, nav_count, nav_next = st.columns([1, 2, 1])
 with nav_prev:
     if st.button("⬅️ Precedente") and st.session_state.indice > 0:
