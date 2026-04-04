@@ -61,14 +61,16 @@ end_range = col2.number_input("A ID:", 1, 3000, 3000)
 
 moduli = sorted(list(set([str(q.get('modulo', 'N/A')) for q in db])))
 mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + moduli)
-cartelle_lista = ["Calderone", "Allenamento", "Campo scuro", "Cassaforte"]
+
+# Aggiornato: Campo scuro -> Campo sicuro
+cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("📂 Cartella:", ["Tutte"] + cartelle_lista)
 
 # --- FILTRAGGIO ---
 domande_filtrate = []
 for q in db:
     q_id_str = str(q['id'])
-    testo_c = (q['testo'] + " ".join(q['opzioni'].values())).lower()
+    testo_c = (q['testo'] + " ".join(q['opzioni'].values()).lower()).lower()
     
     if specific_ids and q_id_str not in specific_ids: continue
     if not (start_range <= int(q['id']) <= end_range): continue
@@ -96,7 +98,7 @@ q = domande_filtrate[st.session_state.indice]
 q_id = str(q['id'])
 
 # --- INTERFACCIA ---
-st.title("🚀 Andromeda 4.0 Online")
+st.title("🚀 Progetto Andromeda 4.0 Online")
 st.markdown(f"<div class='domanda-titolo'>Domanda {q['id']}</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
@@ -127,7 +129,7 @@ if st.session_state.answered:
     if st.session_state.esito == "ok": st.success(f"CORRETTO! Era la {q['corretta'].upper()}")
     elif st.session_state.esito == "no": st.error(f"ERRORE! Era la {q['corretta'].upper()}")
     
-    st.subheader("📂 Dove vuoi spostarla?")
+    st.subheader("📂 In quale cartella vuoi spostarla?")
     attuale = st.session_state.stats[q_id]["cartella"]
     cols = st.columns(4)
     for i, c_name in enumerate(cartelle_lista):
@@ -149,7 +151,7 @@ with n_prev:
         st.session_state.answered = False
         st.rerun()
 with n_count:
-    st.markdown(f"<div style='text-align: center;'><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></div>", unsafe_allow_html=True)
+    st.markdown(f<div style='text-align: center;'><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></div>, unsafe_allow_html=True)
 with n_next:
     if st.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
         st.session_state.indice += 1
