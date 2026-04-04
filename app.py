@@ -39,7 +39,8 @@ if st.session_state.logged_in_user is None:
             <h1 style='color: white; font-size: 80px; margin: 0;'>T</h1>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Accedi come Simone (T)", use_container_width=True):
+        # Modificato il nome del bottone
+        if st.button("Topolino", use_container_width=True):
             st.session_state.selected_acc = 'T'
 
     with col2:
@@ -48,13 +49,14 @@ if st.session_state.logged_in_user is None:
             <h1 style='color: white; font-size: 80px; margin: 0;'>P</h1>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Accedi come Tutor (P)", use_container_width=True):
+        # Modificato il nome del bottone
+        if st.button("Panciccia", use_container_width=True):
             st.session_state.selected_acc = 'P'
 
     if 'selected_acc' in st.session_state:
         acc = st.session_state.selected_acc
         st.markdown("---")
-        pwd = st.text_input(f"🔑 Inserisci la password per l'account **{acc}**:", type="password")
+        pwd = st.text_input(f"🔑 Inserisci la password per sbloccare l'account:", type="password")
         if st.button("Sblocca Sistema", type="primary"):
             if (acc == 'T' and pwd == "topolino") or (acc == 'P' and pwd == "panciccia"):
                 st.session_state.logged_in_user = acc
@@ -63,7 +65,7 @@ if st.session_state.logged_in_user is None:
             else:
                 st.error("❌ Password errata. Accesso negato.")
     
-    st.stop() # Ferma il caricamento del resto dell'app se non si è loggati
+    st.stop() 
 
 # --- 2. FUNZIONI DI DATABASE E SALVATAGGIO ---
 def carica_database():
@@ -87,7 +89,6 @@ def salva_statistiche(stats):
         return True
     except: return False
 
-# Funzione chiave per separare i dati tra Simone (T) e Tutor (P)
 def u_key(base_id):
     return str(base_id) if st.session_state.logged_in_user == 'T' else f"{base_id}_P"
 
@@ -98,7 +99,6 @@ if 'global_stats' not in st.session_state:
     stats_remote = carica_statistiche()
     g_stats = stats_remote if stats_remote else {}
     
-    # Inizializza le domande per entrambi se non esistono
     for q in db:
         base_id = str(q['id'])
         id_p = f"{base_id}_P"
@@ -109,8 +109,8 @@ if 'global_stats' not in st.session_state:
             
     st.session_state.global_stats = g_stats
 
-# --- 4. SIDEBAR E FILTRI (Personali per Utente) ---
-utente_attuale = "Simone" if st.session_state.logged_in_user == 'T' else "Tutor"
+# --- 4. SIDEBAR E FILTRI ---
+utente_attuale = "Topolino" if st.session_state.logged_in_user == 'T' else "Panciccia"
 st.sidebar.success(f"👤 Connesso come: **{utente_attuale}**")
 if st.sidebar.button("🚪 Esci (Logout)"):
     st.session_state.logged_in_user = None
@@ -131,7 +131,7 @@ mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + moduli)
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("📂 Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 5. FILTRAGGIO (Basato sulle scelte dell'utente loggato) ---
+# --- 5. FILTRAGGIO ---
 domande_filtrate = []
 for q in db:
     q_id_str = str(q['id'])
