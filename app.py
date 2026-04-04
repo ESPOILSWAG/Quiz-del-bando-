@@ -6,7 +6,7 @@ st.set_page_config(page_title="Andromeda 4.0 Online", layout="wide")
 
 # --- COLLANTE CON GOOGLE (APPS SCRIPT) ---
 # INCOLLA QUI IL LINK CHE HAI COPIATO DA GOOGLE (quello che inizia con https://script.google.com/...)
-URL_MEMORIA = https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec
+URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
 # Stile grafico Bando Veneto
 st.markdown("""
