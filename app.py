@@ -62,7 +62,6 @@ end_range = col2.number_input("A ID:", 1, 3000, 3000)
 moduli = sorted(list(set([str(q.get('modulo', 'N/A')) for q in db])))
 mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + moduli)
 
-# Aggiornato: Campo scuro -> Campo sicuro
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("📂 Cartella:", ["Tutte"] + cartelle_lista)
 
@@ -70,7 +69,7 @@ cart_scelta = st.sidebar.selectbox("📂 Cartella:", ["Tutte"] + cartelle_lista)
 domande_filtrate = []
 for q in db:
     q_id_str = str(q['id'])
-    testo_c = (q['testo'] + " ".join(q['opzioni'].values()).lower()).lower()
+    testo_c = (q['testo'] + " ".join(q['opzioni'].values())).lower()
     
     if specific_ids and q_id_str not in specific_ids: continue
     if not (start_range <= int(q['id']) <= end_range): continue
@@ -91,43 +90,44 @@ if not domande_filtrate:
     st.warning("Nessuna domanda trovata.")
     st.stop()
 
-# --- NAVIGAZIONE ---
+# --- NAVIGAZIONE E GESTIONE STATO ---
 if 'indice' not in st.session_state: st.session_state.indice = 0
 if st.session_state.indice >= len(domande_filtrate): st.session_state.indice = 0
 q = domande_filtrate[st.session_state.indice]
 q_id = str(q['id'])
+
+# Il "Cervello" del One-Click: Resetta tutto quando passi a una nuova domanda
+if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q_id:
+    st.session_state.current_q_id = q_id
+    st.session_state.answered = False
+    st.session_state.esito = None
 
 # --- INTERFACCIA ---
 st.title("🚀 Progetto Andromeda 4.0 Online")
 st.markdown(f"<div class='domanda-titolo'>Domanda {q['id']}</div>", unsafe_allow_html=True)
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
-scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q_id}")
+# L'elenco puntato ora è "intelligente" e si disabilita da solo dopo il click
+scelta = st.radio("Risposta:", list(q['opzioni'].keys()), 
+                  format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", 
+                  index=None, key=f"r_{q_id}", 
+                  disabled=st.session_state.answered)
 
-if 'answered' not in st.session_state: st.session_state.answered = False
+# Reazione immediata al click senza bisogno del tasto "Conferma"
+if scelta and not st.session_state.answered:
+    st.session_state.answered = True
+    if scelta == q['corretta']:
+        st.session_state.esito = "ok"
+        st.session_state.stats[q_id]["corrette"] += 1
+    else:
+        st.session_state.esito = "no"
+        st.session_state.stats[q_id]["errate"] += 1
+    st.rerun()
 
-c_conf, c_salt = st.columns(2)
-with c_conf:
-    if st.button("✅ Conferma Risposta", use_container_width=True):
-        if scelta:
-            st.session_state.answered = True
-            if scelta == q['corretta']:
-                st.session_state.esito = "ok"
-                st.session_state.stats[q_id]["corrette"] += 1
-            else:
-                st.session_state.esito = "no"
-                st.session_state.stats[q_id]["errate"] += 1
-            st.rerun()
-with c_salt:
-    if st.button("⏭️ Salta / Avanti", use_container_width=True):
-        st.session_state.answered = True
-        st.session_state.esito = "skip"
-        st.rerun()
-
-# --- SMISTAMENTO ---
+# --- SMISTAMENTO POST-RISPOSTA ---
 if st.session_state.answered:
-    if st.session_state.esito == "ok": st.success(f"CORRETTO! Era la {q['corretta'].upper()}")
-    elif st.session_state.esito == "no": st.error(f"ERRORE! Era la {q['corretta'].upper()}")
+    if st.session_state.esito == "ok": st.success(f"✅ CORRETTO! Era la {q['corretta'].upper()}")
+    elif st.session_state.esito == "no": st.error(f"❌ ERRORE! Era la {q['corretta'].upper()}")
     
     st.subheader("📂 In quale cartella vuoi spostarla?")
     attuale = st.session_state.stats[q_id]["cartella"]
@@ -137,7 +137,6 @@ if st.session_state.answered:
             st.session_state.stats[q_id]["cartella"] = c_name
             with st.spinner("Salvataggio..."):
                 salva_statistiche(st.session_state.stats)
-            st.session_state.answered = False
             if st.session_state.indice < len(domande_filtrate) - 1:
                 st.session_state.indice += 1
             st.rerun()
@@ -148,12 +147,10 @@ n_prev, n_count, n_next = st.columns([1, 2, 1])
 with n_prev:
     if st.button("⬅️ Indietro") and st.session_state.indice > 0:
         st.session_state.indice -= 1
-        st.session_state.answered = False
         st.rerun()
 with n_count:
     st.markdown(f"<div style='text-align: center;'><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></div>", unsafe_allow_html=True)
 with n_next:
     if st.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
         st.session_state.indice += 1
-        st.session_state.answered = False
         st.rerun()
