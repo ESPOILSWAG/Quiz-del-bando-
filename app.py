@@ -63,7 +63,7 @@ if st.session_state.logged_in_user is None:
                 st.error("❌ Password errata.")
     st.stop()
 
-# --- 2. FUNZIONI DATI ---
+# --- 2. FUNZIONI DATI E LETTURA CSV ---
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
@@ -71,26 +71,32 @@ def carica_database():
     except:
         return []
         
-    # Lettura mappatura figure dal CSV
     mappatura_figure = {}
+    figure_trovate = 0
     try:
         with open('mappatura.csv', 'r', encoding='utf-8-sig', errors='ignore') as f_csv:
-            reader = csv.reader(f_csv)
+            # Controllo intelligente del separatore (, o ;)
+            first_line = f_csv.readline()
+            delimiter = ';' if ';' in first_line else ','
+            f_csv.seek(0)
+            
+            reader = csv.reader(f_csv, delimiter=delimiter)
             for row in reader:
                 if row:
                     q_id = str(row[0]).strip()
-                    # Cerca "FIGURA" in qualsiasi colonna della riga
                     if any('FIGURA' in str(val).upper() for val in row):
                         mappatura_figure[q_id] = True
-    except:
-        pass
+    except Exception as e:
+        st.session_state.csv_error = str(e)
         
-    # Inserisce il flag figura nel database in memoria
     for q in db:
         if str(q.get('id')) in mappatura_figure:
             q['figura'] = 'FIGURA'
+            figure_trovate += 1
         else:
             q['figura'] = ''
+            
+    st.session_state.debug_figure_count = figure_trovate
     return db
 
 def carica_statistiche():
@@ -136,6 +142,17 @@ st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state.logged_in_user = None
     st.rerun()
+
+st.sidebar.markdown("---")
+
+# MOSTRA IL CONTATORE FIGURE
+num_fig = st.session_state.get('debug_figure_count', 0)
+if num_fig > 0:
+    st.sidebar.success(f"🖼️ Figure lette dal CSV: {num_fig}")
+else:
+    st.sidebar.error("❌ Nessuna figura trovata. CSV non letto o mancante.")
+    if 'csv_error' in st.session_state:
+        st.sidebar.caption(f"Errore: {st.session_state.csv_error}")
 
 st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
