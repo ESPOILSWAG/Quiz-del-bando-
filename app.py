@@ -222,7 +222,7 @@ if q.get('figura') == 'FIGURA':
     st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Clicca sul pulsante rosso qui sopra per aprire il PDF)</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
-
+https://github.com/ESPOILSWAG/Quiz-del-bando-/blob/main/Quiz%20Ministero%20della%20Salute.pdf?raw=true
 scelta = st.radio("Scegli:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q['id']}", disabled=st.session_state.answered)
 
 if scelta and not st.session_state.answered:
