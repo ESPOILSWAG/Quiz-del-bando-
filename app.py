@@ -14,7 +14,7 @@ st.markdown("""
     .domanda-titolo { font-weight: bold; font-size: 18pt; color: #1E88E5; }
     .quesito-testo { font-size: 16pt; font-style: italic; padding-top: 10px; padding-bottom: 20px; }
     .stRadio p { font-size: 10pt !important; font-weight: normal !important; }
-    .figura-alert { background-color: #FFF3E0; border-left: 5px solid #FF9800; padding: 10px; color: #E65100; font-weight: bold; margin-bottom: 10px; }
+    .figura-alert { background-color: #FFF3E0; border-left: 5px solid #FF9800; padding: 15px; color: #E65100; font-size: 14pt; font-weight: bold; margin-bottom: 15px; border-radius: 8px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -187,20 +187,7 @@ else:
 
 # --- 6. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
-
-# --- PULSANTE PDF DIRETTO E VELOCE ---
-# Link corretto con virgolette di chiusura e formattazione sicura
-LINK_PDF_DIRETTO = "https://github.com/Simone_Miozzi/Andromeda-4.0/blob/main/Quiz%20Ministero%20della%20Salute.pdf?raw=true"
-
-st.markdown(f"""
-<a href="{LINK_PDF_DIRETTO}" target="_blank" style="text-decoration: none;">
-    <div style="background-color: #D32F2F; color: white; padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; margin-bottom: 20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
-        📕 APRI PDF AL VOLO (Lettore Nativo / Adobe)
-    </div>
-</a>
-""", unsafe_allow_html=True)
 st.markdown("---")
-
 
 if not domande_filtrate:
     st.warning("Nessuna domanda trovata.")
@@ -218,8 +205,10 @@ if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q[
 
 st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}` | Sezione: `{q.get('sezione', 'N/A')}`")
 
-if q.get('figura') == 'FIGURA':
-    st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Clicca sul pulsante rosso qui sopra per aprire il PDF)</div>", unsafe_allow_html=True)
+# Controllo ultra-sensibile per l'avviso figura
+valore_figura = str(q.get('figura', '')).strip().upper()
+if valore_figura == 'FIGURA' or str(q.get('colonna_I', '')).strip().upper() == 'FIGURA':
+    st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA (Controlla il file originale)</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
