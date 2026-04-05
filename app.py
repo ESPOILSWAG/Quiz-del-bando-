@@ -56,7 +56,6 @@ def carica_statistiche():
     try:
         r = requests.get(URL_MEMORIA, timeout=10)
         dati = r.json()
-        # Pulizia dati in ingresso
         stats = {}
         for row in dati[1:]:
             q_id = str(row[0])
@@ -87,12 +86,24 @@ if 'global_stats' not in st.session_state:
             if k not in st.session_state.global_stats:
                 st.session_state.global_stats[k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR E SCARICO PDF ---
 utente_attuale = "Topolino" if st.session_state.logged_in_user == 'T' else "Panciccia"
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state.logged_in_user = None
     st.rerun()
+
+st.sidebar.title("📚 Risorse PDF")
+try:
+    with open("Quiz Ministero della Salute.pdf", "rb") as f:
+        st.sidebar.download_button(
+            label="📄 Scarica Quiz Ufficiale", 
+            data=f, 
+            file_name="Quiz Ministero della Salute.pdf",
+            mime="application/pdf"
+        )
+except:
+    st.sidebar.info("⚠️ File 'Quiz Ministero della Salute.pdf' non trovato su GitHub.")
 
 st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
@@ -102,7 +113,6 @@ st.sidebar.subheader("📅 Filtro Temporale")
 abilita_data = st.sidebar.checkbox("Filtra per data smistamento")
 range_date = []
 if abilita_data:
-    # Seleziona una data o un intervallo
     range_date = st.sidebar.date_input("Periodo:", value=[], help="Seleziona inizio e fine")
 
 st.sidebar.subheader("🎯 Filtri Numerici")
@@ -113,14 +123,14 @@ start_range = c_n1.number_input("Da:", 1, 3000, 1)
 end_range = c_n2.number_input("A:", 1, 3000, 3000)
 
 st.sidebar.subheader("📂 Cartella e Modulo")
+search_term = st.sidebar.text_input("🔍 Cerca parola:", "").lower()
 mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db]))))
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO (IL CUORE DEL PROBLEMA) ---
+# --- 4. LOGICA FILTRO ---
 def filtra_domande():
     risultato = []
-    # Conta quante domande hanno una data per debug visibile in sidebar
     date_rilevate = 0
     
     for q in db:
@@ -128,38 +138,36 @@ def filtra_domande():
         stat = st.session_state.global_stats[k]
         q_id_int = int(q['id'])
         
-        # 1. Filtri Numerici (Sempre attivi)
+        # Filtri Numerici
         if specific_ids and str(q['id']) not in specific_ids: continue
         if not (start_range <= q_id_int <= end_range): continue
         
-        # 2. Filtro Data (Resiliente)
+        # Filtro Data
         if abilita_data and range_date:
             raw_date = stat.get('data_mod', '')
-            if not raw_date: continue # Salta se non ha data
+            if not raw_date: continue 
             
             date_rilevate += 1
             try:
-                # Tenta di pulire la data di Google Sheets (spesso ISO o stringa)
-                if "T" in raw_date: # Formato 2026-04-05T22...
+                if "T" in raw_date: 
                     d_mod = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
-                elif "/" in raw_date: # Formato 05/04/2026
+                elif "/" in raw_date: 
                     d_mod = datetime.strptime(raw_date, "%d/%m/%Y").date()
                 else: continue
                 
-                # Controllo Intervallo
                 if len(range_date) == 2:
                     if not (range_date[0] <= d_mod <= range_date[1]): continue
                 elif len(range_date) == 1:
                     if d_mod != range_date[0]: continue
             except: continue
 
-        # 3. Altri Filtri
+        # Altri Filtri
+        if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
         if cart_scelta != "Tutte" and stat["cartella"] != cart_scelta: continue
         
         risultato.append(q)
     
-    # Debug info in sidebar
     if abilita_data:
         st.sidebar.caption(f"ℹ️ Domande con data trovate: {date_rilevate}")
         
@@ -200,7 +208,6 @@ if st.session_state.indice >= len(domande_filtrate): st.session_state.indice = 0
 q = domande_filtrate[st.session_state.indice]
 k_q = u_key(q['id'])
 
-# Reset stato se cambio domanda
 if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q['id']:
     st.session_state.current_q_id = q['id']
     st.session_state.answered = False
@@ -215,10 +222,8 @@ st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=
 
 scelta = st.radio("Scegli:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q['id']}", disabled=st.session_state.answered)
 
-# Azione immediata alla risposta
 if scelta and not st.session_state.answered:
     st.session_state.answered = True
-    # Salviamo SEMPRE la data attuale al momento del click
     st.session_state.global_stats[k_q]["data_mod"] = datetime.now().strftime("%d/%m/%Y")
     if scelta == q['corretta']:
         st.session_state.esito = "ok"; st.session_state.global_stats[k_q]["corrette"] += 1
@@ -235,12 +240,10 @@ if st.session_state.answered:
     for i, c_name in enumerate(cartelle_lista):
         if cols[i].button(c_name, key=f"b_{c_name}", use_container_width=True):
             st.session_state.global_stats[k_q]["cartella"] = c_name
-            # Aggiorna la data anche allo smistamento
             st.session_state.global_stats[k_q]["data_mod"] = datetime.now().strftime("%d/%m/%Y")
             salva_statistiche(st.session_state.global_stats)
             st.session_state.answered = False
             
-            # Se stiamo filtrando per cartella, la domanda sparirà da sola, quindi non avanziamo l'indice
             if modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte":
                 pass 
             else:
@@ -254,4 +257,4 @@ if c1.button("⬅️ Indietro") and st.session_state.indice > 0:
     st.session_state.indice -= 1; st.session_state.answered = False; st.rerun()
 c2.markdown(f"<center><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></center>", unsafe_allow_html=True)
 if c3.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
-    st.session_state.indice += 1; st.session_state.answered = False; st.rerun()
+    st.session_state.indice += 1; st.session_state.answered = False; st
