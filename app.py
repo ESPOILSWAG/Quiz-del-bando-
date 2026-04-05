@@ -189,8 +189,8 @@ else:
 st.title("🚀 Andromeda 4.0")
 
 # --- PULSANTE PDF DIRETTO E VELOCE ---
-# INSERISCI QUI IL TUO LINK GITHUB TRA LE VIRGOLETTE (Ricordati di aggiungere ?raw=true alla fine)
-LINK_PDF_DIRETTO = "INSERISCI_QUI_IL_LINK_GITHUB_PULITO?raw=true"
+# Link corretto con virgolette di chiusura e formattazione sicura
+LINK_PDF_DIRETTO = "https://github.com/Simone_Miozzi/Andromeda-4.0/blob/main/Quiz%20Ministero%20della%20Salute.pdf?raw=true"
 
 st.markdown(f"""
 <a href="{LINK_PDF_DIRETTO}" target="_blank" style="text-decoration: none;">
@@ -222,7 +222,7 @@ if q.get('figura') == 'FIGURA':
     st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Clicca sul pulsante rosso qui sopra per aprire il PDF)</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
-https://github.com/ESPOILSWAG/Quiz-del-bando-/blob/main/Quiz%20Ministero%20della%20Salute.pdf?raw=true
+
 scelta = st.radio("Scegli:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q['id']}", disabled=st.session_state.answered)
 
 if scelta and not st.session_state.answered:
