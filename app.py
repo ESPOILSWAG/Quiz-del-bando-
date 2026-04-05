@@ -2,7 +2,6 @@ import streamlit as st
 import json
 import requests
 import random
-import base64
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
@@ -189,16 +188,19 @@ else:
 # --- 6. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
 
-# --- VISUALIZZATORE PDF INLINE ---
-with st.expander("📖 APRI PDF UFFICIALE MINISTERO"):
-    try:
-        with open("Quiz Ministero della Salute.pdf", "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
-    except:
-        st.info("⚠️ File 'Quiz Ministero della Salute.pdf' non trovato. Assicurati di averlo caricato su GitHub.")
+# --- PULSANTE PDF DIRETTO E VELOCE ---
+# INSERISCI QUI IL TUO LINK GITHUB TRA LE VIRGOLETTE (Ricordati di aggiungere ?raw=true alla fine)
+LINK_PDF_DIRETTO = "INSERISCI_QUI_IL_LINK_GITHUB_PULITO?raw=true"
+
+st.markdown(f"""
+<a href="{LINK_PDF_DIRETTO}" target="_blank" style="text-decoration: none;">
+    <div style="background-color: #D32F2F; color: white; padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; margin-bottom: 20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
+        📕 APRI PDF AL VOLO (Lettore Nativo / Adobe)
+    </div>
+</a>
+""", unsafe_allow_html=True)
 st.markdown("---")
+
 
 if not domande_filtrate:
     st.warning("Nessuna domanda trovata.")
@@ -217,7 +219,7 @@ if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q[
 st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}` | Sezione: `{q.get('sezione', 'N/A')}`")
 
 if q.get('figura') == 'FIGURA':
-    st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Apri il PDF dal menu qui sopra per visualizzarla)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Clicca sul pulsante rosso qui sopra per aprire il PDF)</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
@@ -256,4 +258,6 @@ st.write("---")
 c1, c2, c3 = st.columns([1, 2, 1])
 if c1.button("⬅️ Indietro") and st.session_state.indice > 0:
     st.session_state.indice -= 1; st.session_state.answered = False; st.rerun()
-c
+c2.markdown(f"<center><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></center>", unsafe_allow_html=True)
+if c3.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
+    st.session_state.indice += 1; st.session_state.answered = False; st.rerun()
