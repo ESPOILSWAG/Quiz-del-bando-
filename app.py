@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import requests
 import random
+import base64
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
@@ -86,24 +87,12 @@ if 'global_stats' not in st.session_state:
             if k not in st.session_state.global_stats:
                 st.session_state.global_stats[k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
-# --- 3. SIDEBAR E SCARICO PDF ---
+# --- 3. SIDEBAR E IMPOSTAZIONI ---
 utente_attuale = "Topolino" if st.session_state.logged_in_user == 'T' else "Panciccia"
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state.logged_in_user = None
     st.rerun()
-
-st.sidebar.title("📚 Risorse PDF")
-try:
-    with open("Quiz Ministero della Salute.pdf", "rb") as f:
-        st.sidebar.download_button(
-            label="📄 Scarica Quiz Ufficiale", 
-            data=f, 
-            file_name="Quiz Ministero della Salute.pdf",
-            mime="application/pdf"
-        )
-except:
-    st.sidebar.info("⚠️ File 'Quiz Ministero della Salute.pdf' non trovato su GitHub.")
 
 st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
@@ -198,6 +187,19 @@ else:
     domande_filtrate = domande_filtrate_base
 
 # --- 6. VISUALIZZAZIONE ---
+st.title("🚀 Andromeda 4.0")
+
+# --- VISUALIZZATORE PDF INLINE ---
+with st.expander("📖 APRI PDF UFFICIALE MINISTERO"):
+    try:
+        with open("Quiz Ministero della Salute.pdf", "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    except:
+        st.info("⚠️ File 'Quiz Ministero della Salute.pdf' non trovato. Assicurati di averlo caricato su GitHub.")
+st.markdown("---")
+
 if not domande_filtrate:
     st.warning("Nessuna domanda trovata.")
     st.stop()
@@ -212,11 +214,10 @@ if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q[
     st.session_state.current_q_id = q['id']
     st.session_state.answered = False
 
-st.title("🚀 Andromeda 4.0")
 st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}` | Sezione: `{q.get('sezione', 'N/A')}`")
 
 if q.get('figura') == 'FIGURA':
-    st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Controlla il PDF originale)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='figura-alert'>⚠️ FIGURA PRESENTE (Apri il PDF dal menu qui sopra per visualizzarla)</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
@@ -255,6 +256,4 @@ st.write("---")
 c1, c2, c3 = st.columns([1, 2, 1])
 if c1.button("⬅️ Indietro") and st.session_state.indice > 0:
     st.session_state.indice -= 1; st.session_state.answered = False; st.rerun()
-c2.markdown(f"<center><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></center>", unsafe_allow_html=True)
-if c3.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
-    st.session_state.indice += 1; st.session_state.answered = False; st
+c
