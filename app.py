@@ -29,31 +29,32 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 1. ACCESSO E SICUREZZA ---
+# Utilizzo il metodo .get() per prevenire crash (AttributeError)
 if 'logged_in_user' not in st.session_state:
-    st.session_state.logged_in_user = None
+    st.session_state['logged_in_user'] = None
 
-if st.session_state.logged_in_user is not None:
+if st.session_state.get('logged_in_user') is not None:
     if 'login_time' in st.session_state:
-        if get_now_italy() - st.session_state.login_time > timedelta(hours=2):
-            st.session_state.logged_in_user = None
+        if get_now_italy() - st.session_state['login_time'] > timedelta(hours=2):
+            st.session_state['logged_in_user'] = None
             st.rerun()
 
-if st.session_state.logged_in_user is None:
+if st.session_state.get('logged_in_user') is None:
     st.markdown("<h1 style='text-align: center;'>🛡️ Andromeda 4.0</h1>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<div style='background-color: #1E88E5; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>T</h1></div>", unsafe_allow_html=True)
-        if st.button("T", use_container_width=True): st.session_state.selected_acc = 'T'
+        if st.button("T", use_container_width=True): st.session_state['selected_acc'] = 'T'
     with col2:
         st.markdown("<div style='background-color: #E91E63; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>P</h1></div>", unsafe_allow_html=True)
-        if st.button("P", use_container_width=True): st.session_state.selected_acc = 'P'
+        if st.button("P", use_container_width=True): st.session_state['selected_acc'] = 'P'
 
     if 'selected_acc' in st.session_state:
-        pwd = st.text_input(f"Password per {st.session_state.selected_acc}:", type="password")
+        pwd = st.text_input(f"Password per {st.session_state['selected_acc']}:", type="password")
         if st.button("Sblocca", type="primary"):
-            if (st.session_state.selected_acc == 'T' and pwd == "topolino") or (st.session_state.selected_acc == 'P' and pwd == "panciccia"):
-                st.session_state.logged_in_user = st.session_state.selected_acc
-                st.session_state.login_time = get_now_italy()
+            if (st.session_state['selected_acc'] == 'T' and pwd == "topolino") or (st.session_state['selected_acc'] == 'P' and pwd == "panciccia"):
+                st.session_state['logged_in_user'] = st.session_state['selected_acc']
+                st.session_state['login_time'] = get_now_italy()
                 st.rerun()
             else:
                 st.error("❌ Password errata.")
@@ -80,7 +81,7 @@ def carica_database():
         if str(q.get('id')) in mappatura_figure:
             q['figura'] = 'FIGURA'; figure_trovate += 1
         else: q['figura'] = ''
-    st.session_state.debug_figure_count = figure_trovate
+    st.session_state['debug_figure_count'] = figure_trovate
     return db
 
 def carica_statistiche():
@@ -95,20 +96,23 @@ def salva_statistiche(stats):
     try: requests.post(URL_MEMORIA, json=payload, timeout=15); return True
     except: return False
 
+def u_key(base_id):
+    return str(base_id) if st.session_state.get('logged_in_user') == 'T' else f"{base_id}_P"
+
 db = carica_database()
 if 'global_stats' not in st.session_state:
     remote = carica_statistiche()
-    st.session_state.global_stats = remote if remote else {}
+    st.session_state['global_stats'] = remote if remote else {}
     for q in db:
         for k in [str(q['id']), f"{q['id']}_P"]:
-            if k not in st.session_state.global_stats:
-                st.session_state.global_stats[k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
+            if k not in st.session_state['global_stats']:
+                st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
 # --- 3. SIDEBAR ---
-utente_attuale = st.session_state.logged_in_user
+utente_attuale = st.session_state.get('logged_in_user', 'T')
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
-    st.session_state.logged_in_user = None
+    st.session_state['logged_in_user'] = None
     st.rerun()
 
 st.sidebar.markdown("---")
@@ -141,7 +145,7 @@ def filtra_domande():
     risultato = []
     for q in db:
         k = u_key(q['id'])
-        stat = st.session_state.global_stats[k]
+        stat = st.session_state['global_stats'][k]
         
         # Filtri ID e Range
         if specific_ids and str(q['id']) not in specific_ids: continue
@@ -152,7 +156,6 @@ def filtra_domande():
             raw_date = stat.get('data_mod', '')
             if not raw_date: continue
             try:
-                # Gestione formati multipli (ISO, ITA, senza zeri)
                 if "T" in raw_date: d_mod = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
                 elif "/" in raw_date:
                     parti = raw_date.split("/")
@@ -185,10 +188,10 @@ if modalita == "🎯 Active Recall":
         st.sidebar.warning("Genera un nuovo quiz")
         n_q = st.sidebar.number_input("Quesiti:", 1, len(domande_filtrate_base), 10)
         if st.sidebar.button("🎲 Avvia Quiz"):
-            st.session_state.sim_ids = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
-            st.session_state.indice = 0; st.rerun()
+            st.session_state['sim_ids'] = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
+            st.session_state['indice'] = 0; st.rerun()
         st.stop()
-    domande_filtrate = [q for q in db if q['id'] in st.session_state.sim_ids]
+    domande_filtrate = [q for q in db if q['id'] in st.session_state.get('sim_ids', [])]
 else:
     domande_filtrate = domande_filtrate_base
 
@@ -196,12 +199,14 @@ else:
 st.title("🚀 Andromeda 4.0")
 if not domande_filtrate: st.warning("Nessuna domanda trovata."); st.stop()
 
-if 'indice' not in st.session_state: st.session_state.indice = 0
-q = domande_filtrate[st.session_state.indice]
+if 'indice' not in st.session_state: st.session_state['indice'] = 0
+if st.session_state['indice'] >= len(domande_filtrate): st.session_state['indice'] = 0
+
+q = domande_filtrate[st.session_state['indice']]
 k_q = u_key(q['id'])
 
-if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q['id']:
-    st.session_state.current_q_id = q['id']; st.session_state.answered = False
+if 'current_q_id' not in st.session_state or st.session_state['current_q_id'] != q['id']:
+    st.session_state['current_q_id'] = q['id']; st.session_state['answered'] = False
 
 st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}`")
 if q.get('figura') == 'FIGURA':
@@ -209,36 +214,36 @@ if q.get('figura') == 'FIGURA':
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
-scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q['id']}", disabled=st.session_state.answered)
+scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: f"{x.lower()}) {q['opzioni'][x]}", index=None, key=f"r_{q['id']}", disabled=st.session_state.get('answered', False))
 
-if scelta and not st.session_state.answered:
-    st.session_state.answered = True
-    st.session_state.global_stats[k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
+if scelta and not st.session_state.get('answered', False):
+    st.session_state['answered'] = True
+    st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
     if scelta == q['corretta']:
-        st.session_state.esito = "ok"; st.session_state.global_stats[k_q]["corrette"] += 1
+        st.session_state['esito'] = "ok"; st.session_state['global_stats'][k_q]["corrette"] += 1
     else:
-        st.session_state.esito = "no"; st.session_state.global_stats[k_q]["errate"] += 1
+        st.session_state['esito'] = "no"; st.session_state['global_stats'][k_q]["errate"] += 1
     st.rerun()
 
-if st.session_state.answered:
-    if st.session_state.esito == "ok": st.success(f"Corretto! Risposta: {q['corretta'].upper()}")
+if st.session_state.get('answered', False):
+    if st.session_state.get('esito') == "ok": st.success(f"Corretto! Risposta: {q['corretta'].upper()}")
     else: st.error(f"Sbagliato! Era la {q['corretta'].upper()}")
     
     cols = st.columns(4)
     for i, c_name in enumerate(cartelle_lista):
         if cols[i].button(c_name, key=f"b_{c_name}", use_container_width=True):
-            st.session_state.global_stats[k_q]["cartella"] = c_name
-            st.session_state.global_stats[k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
-            salva_statistiche(st.session_state.global_stats)
-            st.session_state.answered = False
+            st.session_state['global_stats'][k_q]["cartella"] = c_name
+            st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
+            salva_statistiche(st.session_state['global_stats'])
+            st.session_state['answered'] = False
             if not (modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte"):
-                if st.session_state.indice < len(domande_filtrate) - 1: st.session_state.indice += 1
+                if st.session_state['indice'] < len(domande_filtrate) - 1: st.session_state['indice'] += 1
             st.rerun()
 
 st.write("---")
 c1, c2, c3 = st.columns([1, 2, 1])
-if c1.button("⬅️ Indietro") and st.session_state.indice > 0:
-    st.session_state.indice -= 1; st.session_state.answered = False; st.rerun()
-c2.markdown(f"<center><b>{st.session_state.indice + 1} / {len(domande_filtrate)}</b></center>", unsafe_allow_html=True)
-if c3.button("Avanti ➡️") and st.session_state.indice < len(domande_filtrate) - 1:
-    st.session_state.indice += 1; st.session_state.answered = False; st.rerun()
+if c1.button("⬅️ Indietro") and st.session_state['indice'] > 0:
+    st.session_state['indice'] -= 1; st.session_state['answered'] = False; st.rerun()
+c2.markdown(f"<center><b>{st.session_state['indice'] + 1} / {len(domande_filtrate)}</b></center>", unsafe_allow_html=True)
+if c3.button("Avanti ➡️") and st.session_state['indice'] < len(domande_filtrate) - 1:
+    st.session_state['indice'] += 1; st.session_state['answered'] = False; st.rerun()
