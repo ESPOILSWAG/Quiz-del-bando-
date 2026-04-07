@@ -11,9 +11,45 @@ st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
 # Link Google Apps Script
 URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
-# Funzione per l'orario Italiano (UTC+2)
+# Funzione per l'orario Italiano esatto
 def get_now_italy():
-    return datetime.now() + timedelta(hours=2)
+    return datetime.utcnow() + timedelta(hours=2)
+
+# --- TRADUTTORE TEMPORALE INFALLIBILE ---
+def estrai_date_possibili(date_str):
+    date_str = str(date_str).strip()
+    if not date_str: return []
+    
+    d_mod = None
+    # 1. Caso Google ISO UTC (es. 2026-04-06T22:00:00.000Z) -> Il bug del fuso orario!
+    if "T" in date_str:
+        try:
+            dt_utc = datetime.strptime(date_str[:19], "%Y-%m-%dT%H:%M:%S")
+            # Sommiamo 2 ore per forzare l'orario italiano
+            d_mod = (dt_utc + timedelta(hours=2)).date()
+        except:
+            try: d_mod = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+            except: pass
+    else:
+        # 2. Casi Standard e Locali
+        try:
+            if "-" in date_str:
+                p = date_str.split(" ")[0].split("-")
+                d_mod = datetime(int(p[0]), int(p[1]), int(p[2])).date() if len(p[0])==4 else datetime(int(p[2]), int(p[1]), int(p[0])).date()
+            elif "/" in date_str:
+                p = date_str.split(" ")[0].split("/")
+                d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
+        except: pass
+    
+    if not d_mod: return []
+    
+    possibili = [d_mod]
+    # 3. Bug Inversione Giorno/Mese Americano
+    if d_mod.day <= 12 and d_mod.day != d_mod.month:
+        try: possibili.append(datetime(d_mod.year, d_mod.day, d_mod.month).date())
+        except: pass
+        
+    return possibili
 
 # Stili CSS
 st.markdown("""
@@ -139,7 +175,7 @@ mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO ANTI-BUG GOOGLE ---
+# --- 4. LOGICA FILTRO BLINDATA ---
 def filtra_domande():
     risultato = []
     for q in db:
@@ -153,40 +189,18 @@ def filtra_domande():
         # Filtro Data
         if abilita_data and range_date:
             raw_date = stat.get('data_mod', '')
-            if not raw_date: continue
+            date_possibili = estrai_date_possibili(raw_date)
             
-            d_mod = None
-            clean_date = str(raw_date).split("T")[0]
-            try:
-                # Estrae la data in qualsiasi formato
-                if "-" in clean_date:
-                    p = clean_date.split("-")
-                    d_mod = datetime(int(p[0]), int(p[1]), int(p[2])).date() if len(p[0])==4 else datetime(int(p[2]), int(p[1]), int(p[0])).date()
-                elif "/" in clean_date:
-                    p = clean_date.split("/")
-                    d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
-            except: continue
-            
-            if not d_mod: continue
-            
-            # MAGIA: Crea il "doppio americano" (es. inverte 7 aprile in 4 luglio)
-            d_mod_swap = None
-            if d_mod.day <= 12:
-                try: d_mod_swap = datetime(d_mod.year, d_mod.day, d_mod.month).date()
-                except: pass
-                
             match = False
-            if isinstance(range_date, (list, tuple)):
-                if len(range_date) == 2:
-                    if (range_date[0] <= d_mod <= range_date[1]) or (d_mod_swap and range_date[0] <= d_mod_swap <= range_date[1]):
-                        match = True
-                elif len(range_date) == 1:
-                    if d_mod == range_date[0] or d_mod_swap == range_date[0]:
-                        match = True
-            else:
-                if d_mod == range_date or d_mod_swap == range_date:
-                    match = True
-                    
+            for d in date_possibili:
+                if isinstance(range_date, (list, tuple)):
+                    if len(range_date) == 2:
+                        if range_date[0] <= d <= range_date[1]: match = True; break
+                    elif len(range_date) == 1:
+                        if d == range_date[0]: match = True; break
+                else:
+                    if d == range_date: match = True; break
+            
             if not match: continue
 
         # Altri Filtri
@@ -235,7 +249,6 @@ scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: 
 
 if scelta and not st.session_state.get('answered', False):
     st.session_state['answered'] = True
-    # NUOVO FORMATO STANDARD UNIVERSALE (Anno-Mese-Giorno)
     st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
     if scelta == q['corretta']:
         st.session_state['esito'] = "ok"; st.session_state['global_stats'][k_q]["corrette"] += 1
@@ -251,7 +264,6 @@ if st.session_state.get('answered', False):
     for i, c_name in enumerate(cartelle_lista):
         if cols[i].button(c_name, key=f"b_{c_name}", use_container_width=True):
             st.session_state['global_stats'][k_q]["cartella"] = c_name
-            # NUOVO FORMATO STANDARD UNIVERSALE (Anno-Mese-Giorno)
             st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
             salva_statistiche(st.session_state['global_stats'])
             st.session_state['answered'] = False
