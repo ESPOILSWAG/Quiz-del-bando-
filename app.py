@@ -29,7 +29,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 1. ACCESSO E SICUREZZA ---
-# Utilizzo il metodo .get() per prevenire crash (AttributeError)
 if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
 
@@ -140,7 +139,7 @@ mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO MIGLIORATA ---
+# --- 4. LOGICA FILTRO ANTI-BUG GOOGLE ---
 def filtra_domande():
     risultato = []
     for q in db:
@@ -151,32 +150,50 @@ def filtra_domande():
         if specific_ids and str(q['id']) not in specific_ids: continue
         if not (start_range <= int(q['id']) <= end_range): continue
         
-        # Filtro Data (Resiliente)
+        # Filtro Data
         if abilita_data and range_date:
             raw_date = stat.get('data_mod', '')
             if not raw_date: continue
+            
+            d_mod = None
+            clean_date = str(raw_date).split("T")[0]
             try:
-                if "T" in raw_date: d_mod = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
-                elif "/" in raw_date:
-                    parti = raw_date.split("/")
-                    d_mod = datetime(int(parti[2]), int(parti[1]), int(parti[0])).date()
-                elif "-" in raw_date:
-                    parti = raw_date.split("-")
-                    d_mod = datetime(int(parti[0]), int(parti[1]), int(parti[2])).date()
-                else: continue
-                
-                if isinstance(range_date, list) or isinstance(range_date, tuple):
-                    if len(range_date) == 2:
-                        if not (range_date[0] <= d_mod <= range_date[1]): continue
-                    elif len(range_date) == 1:
-                        if d_mod != range_date[0]: continue
-                else:
-                    if d_mod != range_date: continue
+                # Estrae la data in qualsiasi formato
+                if "-" in clean_date:
+                    p = clean_date.split("-")
+                    d_mod = datetime(int(p[0]), int(p[1]), int(p[2])).date() if len(p[0])==4 else datetime(int(p[2]), int(p[1]), int(p[0])).date()
+                elif "/" in clean_date:
+                    p = clean_date.split("/")
+                    d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
             except: continue
+            
+            if not d_mod: continue
+            
+            # MAGIA: Crea il "doppio americano" (es. inverte 7 aprile in 4 luglio)
+            d_mod_swap = None
+            if d_mod.day <= 12:
+                try: d_mod_swap = datetime(d_mod.year, d_mod.day, d_mod.month).date()
+                except: pass
+                
+            match = False
+            if isinstance(range_date, (list, tuple)):
+                if len(range_date) == 2:
+                    if (range_date[0] <= d_mod <= range_date[1]) or (d_mod_swap and range_date[0] <= d_mod_swap <= range_date[1]):
+                        match = True
+                elif len(range_date) == 1:
+                    if d_mod == range_date[0] or d_mod_swap == range_date[0]:
+                        match = True
+            else:
+                if d_mod == range_date or d_mod_swap == range_date:
+                    match = True
+                    
+            if not match: continue
 
+        # Altri Filtri
         if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
         if cart_scelta != "Tutte" and stat["cartella"] != cart_scelta: continue
+        
         risultato.append(q)
     return risultato
 
@@ -197,7 +214,7 @@ else:
 
 # --- 5. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
-if not domande_filtrate: st.warning("Nessuna domanda trovata."); st.stop()
+if not domande_filtrate: st.warning("Nessuna domanda trovata coi filtri attuali."); st.stop()
 
 if 'indice' not in st.session_state: st.session_state['indice'] = 0
 if st.session_state['indice'] >= len(domande_filtrate): st.session_state['indice'] = 0
@@ -218,7 +235,8 @@ scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: 
 
 if scelta and not st.session_state.get('answered', False):
     st.session_state['answered'] = True
-    st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
+    # NUOVO FORMATO STANDARD UNIVERSALE (Anno-Mese-Giorno)
+    st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
     if scelta == q['corretta']:
         st.session_state['esito'] = "ok"; st.session_state['global_stats'][k_q]["corrette"] += 1
     else:
@@ -233,7 +251,8 @@ if st.session_state.get('answered', False):
     for i, c_name in enumerate(cartelle_lista):
         if cols[i].button(c_name, key=f"b_{c_name}", use_container_width=True):
             st.session_state['global_stats'][k_q]["cartella"] = c_name
-            st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
+            # NUOVO FORMATO STANDARD UNIVERSALE (Anno-Mese-Giorno)
+            st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
             salva_statistiche(st.session_state['global_stats'])
             st.session_state['answered'] = False
             if not (modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte"):
