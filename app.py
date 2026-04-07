@@ -11,6 +11,10 @@ st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
 # Link Google Apps Script
 URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
+# Funzione per l'orario Italiano (UTC+2)
+def get_now_italy():
+    return datetime.now() + timedelta(hours=2)
+
 # Stili CSS
 st.markdown("""
 <style>
@@ -18,14 +22,8 @@ st.markdown("""
     .quesito-testo { font-size: 16pt; font-style: italic; padding-top: 10px; padding-bottom: 20px; }
     .stRadio p { font-size: 10pt !important; font-weight: normal !important; }
     .figura-alert { 
-        background-color: #FFF3E0; 
-        border-left: 5px solid #FF9800; 
-        padding: 15px; 
-        color: #E65100; 
-        font-size: 14pt; 
-        font-weight: bold; 
-        margin-bottom: 15px; 
-        border-radius: 8px;
+        background-color: #FFF3E0; border-left: 5px solid #FF9800; padding: 15px; 
+        color: #E65100; font-size: 14pt; font-weight: bold; margin-bottom: 15px; border-radius: 8px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -36,7 +34,7 @@ if 'logged_in_user' not in st.session_state:
 
 if st.session_state.logged_in_user is not None:
     if 'login_time' in st.session_state:
-        if datetime.now() - st.session_state.login_time > timedelta(hours=2):
+        if get_now_italy() - st.session_state.login_time > timedelta(hours=2):
             st.session_state.logged_in_user = None
             st.rerun()
 
@@ -45,56 +43,43 @@ if st.session_state.logged_in_user is None:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<div style='background-color: #1E88E5; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>T</h1></div>", unsafe_allow_html=True)
-        if st.button("T", use_container_width=True):
-            st.session_state.selected_acc = 'T'
+        if st.button("T", use_container_width=True): st.session_state.selected_acc = 'T'
     with col2:
         st.markdown("<div style='background-color: #E91E63; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>P</h1></div>", unsafe_allow_html=True)
-        if st.button("P", use_container_width=True):
-            st.session_state.selected_acc = 'P'
+        if st.button("P", use_container_width=True): st.session_state.selected_acc = 'P'
 
     if 'selected_acc' in st.session_state:
         pwd = st.text_input(f"Password per {st.session_state.selected_acc}:", type="password")
         if st.button("Sblocca", type="primary"):
             if (st.session_state.selected_acc == 'T' and pwd == "topolino") or (st.session_state.selected_acc == 'P' and pwd == "panciccia"):
                 st.session_state.logged_in_user = st.session_state.selected_acc
-                st.session_state.login_time = datetime.now()
+                st.session_state.login_time = get_now_italy()
                 st.rerun()
             else:
                 st.error("❌ Password errata.")
     st.stop()
 
-# --- 2. FUNZIONI DATI E LETTURA CSV ---
+# --- 2. FUNZIONI DATI ---
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
             db = json.load(f)
-    except:
-        return []
-        
+    except: return []
     mappatura_figure = {}
     figure_trovate = 0
     try:
         with open('mappatura.csv', 'r', encoding='utf-8-sig', errors='ignore') as f_csv:
-            first_line = f_csv.readline()
-            delimiter = ';' if ';' in first_line else ','
-            f_csv.seek(0)
-            
+            line = f_csv.readline(); delimiter = ';' if ';' in line else ','; f_csv.seek(0)
             reader = csv.reader(f_csv, delimiter=delimiter)
             for row in reader:
                 if row:
                     q_id = str(row[0]).strip()
-                    if any('FIGURA' in str(val).upper() for val in row):
-                        mappatura_figure[q_id] = True
-    except Exception as e:
-        st.session_state.csv_error = str(e)
-        
+                    if any('FIGURA' in str(val).upper() for val in row): mappatura_figure[q_id] = True
+    except: pass
     for q in db:
         if str(q.get('id')) in mappatura_figure:
-            q['figura'] = 'FIGURA'
-            figure_trovate += 1
-        else:
-            q['figura'] = ''
-            
+            q['figura'] = 'FIGURA'; figure_trovate += 1
+        else: q['figura'] = ''
     st.session_state.debug_figure_count = figure_trovate
     return db
 
@@ -102,31 +87,15 @@ def carica_statistiche():
     try:
         r = requests.get(URL_MEMORIA, timeout=10)
         dati = r.json()
-        stats = {}
-        for row in dati[1:]:
-            q_id = str(row[0])
-            stats[q_id] = {
-                "corrette": int(row[1]), "errate": int(row[2]), 
-                "cartella": str(row[3]), "data_mod": str(row[4]) if len(row) > 4 else ""
-            }
-        return stats
-    except:
-        return None
+        return {str(row[0]): {"corrette": int(row[1]), "errate": int(row[2]), "cartella": str(row[3]), "data_mod": str(row[4]) if len(row) > 4 else ""} for row in dati[1:]}
+    except: return None
 
 def salva_statistiche(stats):
     payload = [{"id": k, "corrette": v['corrette'], "errate": v['errate'], "cartella": v['cartella'], "data_modifica": v.get('data_mod', '')} for k, v in stats.items()]
-    try:
-        requests.post(URL_MEMORIA, json=payload, timeout=15)
-        return True
-    except:
-        return False
+    try: requests.post(URL_MEMORIA, json=payload, timeout=15); return True
+    except: return False
 
-def u_key(base_id):
-    return str(base_id) if st.session_state.logged_in_user == 'T' else f"{base_id}_P"
-
-# Inizializzazione dati
 db = carica_database()
-
 if 'global_stats' not in st.session_state:
     remote = carica_statistiche()
     st.session_state.global_stats = remote if remote else {}
@@ -136,21 +105,15 @@ if 'global_stats' not in st.session_state:
                 st.session_state.global_stats[k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
 # --- 3. SIDEBAR ---
-utente_attuale = "T" if st.session_state.logged_in_user == 'T' else "P"
+utente_attuale = st.session_state.logged_in_user
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state.logged_in_user = None
     st.rerun()
 
 st.sidebar.markdown("---")
-
 num_fig = st.session_state.get('debug_figure_count', 0)
-if num_fig > 0:
-    st.sidebar.success(f"🖼️ Figure lette dal CSV: {num_fig}")
-else:
-    st.sidebar.error("❌ Nessuna figura trovata. CSV non letto o mancante.")
-    if 'csv_error' in st.session_state:
-        st.sidebar.caption(f"Errore: {st.session_state.csv_error}")
+if num_fig > 0: st.sidebar.success(f"🖼️ Figure attive: {num_fig}")
 
 st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
@@ -158,46 +121,54 @@ modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "�
 st.sidebar.markdown("---")
 st.sidebar.subheader("📅 Filtro Temporale")
 abilita_data = st.sidebar.checkbox("Filtra per data")
-range_date = []
-if abilita_data:
-    range_date = st.sidebar.date_input("Periodo:", value=[])
+range_date = st.sidebar.date_input("Periodo:", value=[]) if abilita_data else []
 
 st.sidebar.subheader("🎯 Filtri Numerici")
-ids_input = st.sidebar.text_input("ID specifici (es: 1, 5):", "")
+ids_input = st.sidebar.text_input("ID specifici (es: 1, 150):", "")
 specific_ids = [s.strip() for s in ids_input.split(",") if s.strip()]
 c_n1, c_n2 = st.sidebar.columns(2)
 start_range = c_n1.number_input("Da:", 1, 3000, 1)
 end_range = c_n2.number_input("A:", 1, 3000, 3000)
 
 st.sidebar.subheader("📂 Filtri Contenuto")
-search_term = st.sidebar.text_input("🔍 Cerca parola:", "").lower()
+search_term = st.sidebar.text_input("🔍 Cerca:", "").lower()
 mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db]))))
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO ---
+# --- 4. LOGICA FILTRO MIGLIORATA ---
 def filtra_domande():
     risultato = []
     for q in db:
         k = u_key(q['id'])
         stat = st.session_state.global_stats[k]
-        q_id_int = int(q['id'])
         
+        # Filtri ID e Range
         if specific_ids and str(q['id']) not in specific_ids: continue
-        if not (start_range <= q_id_int <= end_range): continue
+        if not (start_range <= int(q['id']) <= end_range): continue
         
+        # Filtro Data (Resiliente)
         if abilita_data and range_date:
             raw_date = stat.get('data_mod', '')
-            if not raw_date: continue 
+            if not raw_date: continue
             try:
+                # Gestione formati multipli (ISO, ITA, senza zeri)
                 if "T" in raw_date: d_mod = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
-                elif "/" in raw_date: d_mod = datetime.strptime(raw_date, "%d/%m/%Y").date()
+                elif "/" in raw_date:
+                    parti = raw_date.split("/")
+                    d_mod = datetime(int(parti[2]), int(parti[1]), int(parti[0])).date()
+                elif "-" in raw_date:
+                    parti = raw_date.split("-")
+                    d_mod = datetime(int(parti[0]), int(parti[1]), int(parti[2])).date()
                 else: continue
                 
-                if len(range_date) == 2:
-                    if not (range_date[0] <= d_mod <= range_date[1]): continue
-                elif len(range_date) == 1:
-                    if d_mod != range_date[0]: continue
+                if isinstance(range_date, list) or isinstance(range_date, tuple):
+                    if len(range_date) == 2:
+                        if not (range_date[0] <= d_mod <= range_date[1]): continue
+                    elif len(range_date) == 1:
+                        if d_mod != range_date[0]: continue
+                else:
+                    if d_mod != range_date: continue
             except: continue
 
         if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
@@ -208,48 +179,33 @@ def filtra_domande():
 
 domande_filtrate_base = filtra_domande()
 
-# Gestione Modalità
 if modalita == "🎯 Active Recall":
-    st.sidebar.markdown("---")
-    if not domande_filtrate_base:
-        st.sidebar.warning("Nessuna domanda trovata.")
-        domande_filtrate = []
-    else:
-        n_q = st.sidebar.number_input("Domande quiz:", 1, len(domande_filtrate_base), min(10, len(domande_filtrate_base)))
-        if st.sidebar.button("🎲 Genera Quiz"):
+    if not domande_filtrate_base: st.stop()
+    if 'sim_ids' not in st.session_state:
+        st.sidebar.warning("Genera un nuovo quiz")
+        n_q = st.sidebar.number_input("Quesiti:", 1, len(domande_filtrate_base), 10)
+        if st.sidebar.button("🎲 Avvia Quiz"):
             st.session_state.sim_ids = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
-            st.session_state.indice = 0
-            st.rerun()
-        if 'sim_ids' in st.session_state:
-            domande_filtrate = [q for q in db if q['id'] in st.session_state.sim_ids]
-        else:
-            st.stop()
+            st.session_state.indice = 0; st.rerun()
+        st.stop()
+    domande_filtrate = [q for q in db if q['id'] in st.session_state.sim_ids]
 else:
     domande_filtrate = domande_filtrate_base
 
 # --- 5. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
-st.markdown("---")
+if not domande_filtrate: st.warning("Nessuna domanda trovata."); st.stop()
 
-if not domande_filtrate:
-    st.warning("Nessuna domanda trovata.")
-    st.stop()
-
-if 'indice' not in st.session_state or st.session_state.indice >= len(domande_filtrate):
-    st.session_state.indice = 0
-
+if 'indice' not in st.session_state: st.session_state.indice = 0
 q = domande_filtrate[st.session_state.indice]
 k_q = u_key(q['id'])
 
 if 'current_q_id' not in st.session_state or st.session_state.current_q_id != q['id']:
-    st.session_state.current_q_id = q['id']
-    st.session_state.answered = False
+    st.session_state.current_q_id = q['id']; st.session_state.answered = False
 
-st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}` | Sezione: `{q.get('sezione', 'N/A')}`")
-
-# ALERT FIGURA
+st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}`")
 if q.get('figura') == 'FIGURA':
-    st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA (Controlla il file originale)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
@@ -257,32 +213,26 @@ scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: 
 
 if scelta and not st.session_state.answered:
     st.session_state.answered = True
-    st.session_state.global_stats[k_q]["data_mod"] = datetime.now().strftime("%d/%m/%Y")
+    st.session_state.global_stats[k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
     if scelta == q['corretta']:
-        st.session_state.esito = "ok"
-        st.session_state.global_stats[k_q]["corrette"] += 1
+        st.session_state.esito = "ok"; st.session_state.global_stats[k_q]["corrette"] += 1
     else:
-        st.session_state.esito = "no"
-        st.session_state.global_stats[k_q]["errate"] += 1
+        st.session_state.esito = "no"; st.session_state.global_stats[k_q]["errate"] += 1
     st.rerun()
 
 if st.session_state.answered:
     if st.session_state.esito == "ok": st.success(f"Corretto! Risposta: {q['corretta'].upper()}")
     else: st.error(f"Sbagliato! Era la {q['corretta'].upper()}")
     
-    st.subheader("Smista in:")
     cols = st.columns(4)
     for i, c_name in enumerate(cartelle_lista):
         if cols[i].button(c_name, key=f"b_{c_name}", use_container_width=True):
             st.session_state.global_stats[k_q]["cartella"] = c_name
-            st.session_state.global_stats[k_q]["data_mod"] = datetime.now().strftime("%d/%m/%Y")
+            st.session_state.global_stats[k_q]["data_mod"] = get_now_italy().strftime("%d/%m/%Y")
             salva_statistiche(st.session_state.global_stats)
             st.session_state.answered = False
-            if modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte":
-                pass 
-            else:
-                if st.session_state.indice < len(domande_filtrate) - 1:
-                    st.session_state.indice += 1
+            if not (modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte"):
+                if st.session_state.indice < len(domande_filtrate) - 1: st.session_state.indice += 1
             st.rerun()
 
 st.write("---")
