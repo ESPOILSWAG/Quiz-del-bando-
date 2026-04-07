@@ -45,11 +45,11 @@ if st.session_state.logged_in_user is None:
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("<div style='background-color: #1E88E5; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>T</h1></div>", unsafe_allow_html=True)
-        if st.button("Topolino", use_container_width=True):
+        if st.button("T", use_container_width=True):
             st.session_state.selected_acc = 'T'
     with col2:
         st.markdown("<div style='background-color: #E91E63; padding: 40px; text-align: center; border-radius: 20px;'><h1 style='color: white; font-size: 80px; margin: 0;'>P</h1></div>", unsafe_allow_html=True)
-        if st.button("Panciccia", use_container_width=True):
+        if st.button("P", use_container_width=True):
             st.session_state.selected_acc = 'P'
 
     if 'selected_acc' in st.session_state:
@@ -75,7 +75,6 @@ def carica_database():
     figure_trovate = 0
     try:
         with open('mappatura.csv', 'r', encoding='utf-8-sig', errors='ignore') as f_csv:
-            # Controllo intelligente del separatore (, o ;)
             first_line = f_csv.readline()
             delimiter = ';' if ';' in first_line else ','
             f_csv.seek(0)
@@ -137,7 +136,7 @@ if 'global_stats' not in st.session_state:
                 st.session_state.global_stats[k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
 # --- 3. SIDEBAR ---
-utente_attuale = "Topolino" if st.session_state.logged_in_user == 'T' else "Panciccia"
+utente_attuale = "T" if st.session_state.logged_in_user == 'T' else "P"
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state.logged_in_user = None
@@ -145,7 +144,6 @@ if st.sidebar.button("🚪 Logout"):
 
 st.sidebar.markdown("---")
 
-# MOSTRA IL CONTATORE FIGURE
 num_fig = st.session_state.get('debug_figure_count', 0)
 if num_fig > 0:
     st.sidebar.success(f"🖼️ Figure lette dal CSV: {num_fig}")
