@@ -8,18 +8,17 @@ from datetime import datetime, timedelta
 # Configurazione Pagina
 st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
 
-# Link Google Apps Script
+# Link Google Apps Script per la sincronizzazione
 URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
-# Funzione per l'orario Italiano esatto
+# Funzione per l'orario Italiano esatto (UTC+2)
 def get_now_italy():
     return datetime.utcnow() + timedelta(hours=2)
 
-# --- TRADUTTORE TEMPORALE INFALLIBILE ---
+# Traduttore temporale per gestire i formati di Google Sheets e i bug del fuso orario
 def estrai_date_possibili(date_str):
     date_str = str(date_str).strip()
     if not date_str: return []
-    
     d_mod = None
     if "T" in date_str:
         try:
@@ -37,17 +36,14 @@ def estrai_date_possibili(date_str):
                 p = date_str.split(" ")[0].split("/")
                 d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
         except: pass
-    
     if not d_mod: return []
-    
     possibili = [d_mod]
     if d_mod.day <= 12 and d_mod.day != d_mod.month:
         try: possibili.append(datetime(d_mod.year, d_mod.day, d_mod.month).date())
         except: pass
-        
     return possibili
 
-# Stili CSS
+# Stili CSS Obbligatori: Domanda grassetto, Testo 16pt corsivo, Opzioni 10pt tondo
 st.markdown("""
 <style>
     .domanda-titolo { font-weight: bold; font-size: 18pt; color: #1E88E5; }
@@ -60,7 +56,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. ACCESSO E SICUREZZA ---
+# 1. ACCESSO E SICUREZZA (Gestione Account T e P)
 if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
 
@@ -87,32 +83,24 @@ if st.session_state.get('logged_in_user') is None:
                 st.session_state['logged_in_user'] = st.session_state['selected_acc']
                 st.session_state['login_time'] = get_now_italy()
                 st.rerun()
-            else:
-                st.error("❌ Password errata.")
+            else: st.error("❌ Password errata.")
     st.stop()
 
-# --- 2. FUNZIONI DATI ---
+# 2. CARICAMENTO DATI
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
             db = json.load(f)
     except: return []
     mappatura_figure = {}
-    figure_trovate = 0
     try:
-        with open('mappatura.csv', 'r', encoding='utf-8-sig', errors='ignore') as f_csv:
-            line = f_csv.readline(); delimiter = ';' if ';' in line else ','; f_csv.seek(0)
-            reader = csv.reader(f_csv, delimiter=delimiter)
+        with open('mappatura.csv', 'r', encoding='utf-8-sig') as f_csv:
+            reader = csv.reader(f_csv, delimiter=';' if ';' in f_csv.readline() else ',')
+            f_csv.seek(0)
             for row in reader:
-                if row:
-                    q_id = str(row[0]).strip()
-                    if any('FIGURA' in str(val).upper() for val in row): mappatura_figure[q_id] = True
+                if row and 'FIGURA' in str(row).upper(): mappatura_figure[str(row[0]).strip()] = True
     except: pass
-    for q in db:
-        if str(q.get('id')) in mappatura_figure:
-            q['figura'] = 'FIGURA'; figure_trovate += 1
-        else: q['figura'] = ''
-    st.session_state['debug_figure_count'] = figure_trovate
+    for q in db: q['figura'] = 'FIGURA' if str(q.get('id')) in mappatura_figure else ''
     return db
 
 def carica_statistiche():
@@ -139,95 +127,58 @@ if 'global_stats' not in st.session_state:
             if k not in st.session_state['global_stats']:
                 st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
-# --- 3. SIDEBAR ---
-utente_attuale = st.session_state.get('logged_in_user', 'T')
-st.sidebar.success(f"👤 Account: **{utente_attuale}**")
+# 3. FILTRI SIDEBAR
+st.sidebar.success(f"👤 Account: **{st.session_state.get('logged_in_user')}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in_user'] = None
     st.rerun()
 
-st.sidebar.markdown("---")
-num_fig = st.session_state.get('debug_figure_count', 0)
-if num_fig > 0: st.sidebar.success(f"🖼️ Figure attive: {num_fig}")
-
-st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("📅 Filtro Temporale")
 abilita_data = st.sidebar.checkbox("Filtra per data")
 range_date = st.sidebar.date_input("Periodo:", value=[]) if abilita_data else []
 
-st.sidebar.subheader("🎯 Filtri Numerici")
 ids_input = st.sidebar.text_input("ID specifici (es: 1, 150):", "")
 specific_ids = [s.strip() for s in ids_input.split(",") if s.strip()]
 c_n1, c_n2 = st.sidebar.columns(2)
 start_range = c_n1.number_input("Da:", 1, 3000, 1)
 end_range = c_n2.number_input("A:", 1, 3000, 3000)
 
-st.sidebar.subheader("📂 Filtri Contenuto")
 search_term = st.sidebar.text_input("🔍 Cerca:", "").lower()
 mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db]))))
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO BLINDATA ---
+# 4. LOGICA FILTRO
 def filtra_domande():
     risultato = []
     for q in db:
         k = u_key(q['id'])
         stat = st.session_state['global_stats'][k]
-        
-        # Filtri ID e Range
         if specific_ids and str(q['id']) not in specific_ids: continue
         if not (start_range <= int(q['id']) <= end_range): continue
-        
-        # Filtro Data
         if abilita_data and range_date:
-            raw_date = stat.get('data_mod', '')
-            date_possibili = estrai_date_possibili(raw_date)
-            
+            date_possibili = estrai_date_possibili(stat.get('data_mod', ''))
             match = False
             for d in date_possibili:
                 if isinstance(range_date, (list, tuple)):
-                    if len(range_date) == 2:
-                        if range_date[0] <= d <= range_date[1]: match = True; break
-                    elif len(range_date) == 1:
-                        if d == range_date[0]: match = True; break
-                else:
-                    if d == range_date: match = True; break
-            
+                    if len(range_date) == 2 and range_date[0] <= d <= range_date[1]: match = True; break
+                    elif len(range_date) == 1 and d == range_date[0]: match = True; break
+                elif d == range_date: match = True; break
             if not match: continue
-
-        # Altri Filtri
         if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
         if cart_scelta != "Tutte" and stat["cartella"] != cart_scelta: continue
-        
         risultato.append(q)
     return risultato
 
-domande_filtrate_base = filtra_domande()
+domande_filtrate = filtra_domande()
 
-if modalita == "🎯 Active Recall":
-    if not domande_filtrate_base: st.stop()
-    if 'sim_ids' not in st.session_state:
-        st.sidebar.warning("Genera un nuovo quiz")
-        n_q = st.sidebar.number_input("Quesiti:", 1, len(domande_filtrate_base), 10)
-        if st.sidebar.button("🎲 Avvia Quiz"):
-            st.session_state['sim_ids'] = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
-            st.session_state['indice'] = 0; st.rerun()
-        st.stop()
-    domande_filtrate = [q for q in db if q['id'] in st.session_state.get('sim_ids', [])]
-else:
-    domande_filtrate = domande_filtrate_base
-
-# --- 5. VISUALIZZAZIONE ---
+# 5. VISUALIZZAZIONE
 st.title("🚀 Andromeda 4.0")
-if not domande_filtrate: st.warning("Nessuna domanda trovata coi filtri attuali."); st.stop()
+if not domande_filtrate: st.warning("Nessuna domanda trovata."); st.stop()
 
-if 'indice' not in st.session_state: st.session_state['indice'] = 0
-if st.session_state['indice'] >= len(domande_filtrate): st.session_state['indice'] = 0
+if 'indice' not in st.session_state or st.session_state['indice'] >= len(domande_filtrate):
+    st.session_state['indice'] = 0
 
 q = domande_filtrate[st.session_state['indice']]
 k_q = u_key(q['id'])
@@ -236,8 +187,7 @@ if 'current_q_id' not in st.session_state or st.session_state['current_q_id'] !=
     st.session_state['current_q_id'] = q['id']; st.session_state['answered'] = False
 
 st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}`")
-if q.get('figura') == 'FIGURA':
-    st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA</div>", unsafe_allow_html=True)
+if q.get('figura') == 'FIGURA': st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA</div>", unsafe_allow_html=True)
 
 st.markdown(f"<div class='quesito-testo'>{q['testo']}</div>", unsafe_allow_html=True)
 
@@ -263,8 +213,7 @@ if st.session_state.get('answered', False):
             st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
             salva_statistiche(st.session_state['global_stats'])
             st.session_state['answered'] = False
-            if not (modalita == "📚 Esplorazione Libera" and cart_scelta != "Tutte"):
-                if st.session_state['indice'] < len(domande_filtrate) - 1: st.session_state['indice'] += 1
+            if st.session_state['indice'] < len(domande_filtrate) - 1: st.session_state['indice'] += 1
             st.rerun()
 
 st.write("---")
