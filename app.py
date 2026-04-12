@@ -11,11 +11,10 @@ st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
 # Link Google Apps Script
 URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
-# Funzione per l'orario Italiano esatto (UTC+2)
+# Funzione per l'orario Italiano esatto
 def get_now_italy():
     return datetime.utcnow() + timedelta(hours=2)
 
-# --- TRADUTTORE TEMPORALE INFALLIBILE ---
 def estrai_date_possibili(date_str):
     date_str = str(date_str).strip()
     if not date_str: return []
@@ -53,10 +52,13 @@ st.markdown("""
         background-color: #FFF3E0; border-left: 5px solid #FF9800; padding: 15px; 
         color: #E65100; font-size: 14pt; font-weight: bold; margin-bottom: 15px; border-radius: 8px;
     }
+    .badge-info {
+        background-color: #E3F2FD; color: #1565C0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 1. ACCESSO E SICUREZZA ---
+# 1. ACCESSO E SICUREZZA
 if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
 
@@ -83,11 +85,10 @@ if st.session_state.get('logged_in_user') is None:
                 st.session_state['logged_in_user'] = st.session_state['selected_acc']
                 st.session_state['login_time'] = get_now_italy()
                 st.rerun()
-            else:
-                st.error("❌ Password errata.")
+            else: st.error("❌ Password errata.")
     st.stop()
 
-# --- 2. FUNZIONI DATI ---
+# 2. CARICAMENTO DATI
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
@@ -135,16 +136,12 @@ if 'global_stats' not in st.session_state:
             if k not in st.session_state['global_stats']:
                 st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
-# --- 3. SIDEBAR ---
+# 3. SIDEBAR
 utente_attuale = st.session_state.get('logged_in_user', 'T')
 st.sidebar.success(f"👤 Account: **{utente_attuale}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in_user'] = None
     st.rerun()
-
-st.sidebar.markdown("---")
-num_fig = st.session_state.get('debug_figure_count', 0)
-if num_fig > 0: st.sidebar.success(f"🖼️ Figure attive: {num_fig}")
 
 st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
@@ -163,26 +160,34 @@ end_range = c_n2.number_input("A:", 1, 3000, 3000)
 
 st.sidebar.subheader("📂 Filtri Contenuto")
 search_term = st.sidebar.text_input("🔍 Cerca:", "").lower()
-mod_scelto = st.sidebar.selectbox("Modulo:", ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db]))))
+
+# Logica dinamica per i Moduli e le Sezioni
+mod_scelti_possibili = ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db])))
+mod_scelto = st.sidebar.selectbox("Modulo:", mod_scelti_possibili)
+
+sezioni_possibili = ["Tutte"]
+for q in db:
+    if mod_scelto == "Tutti" or str(q.get('modulo', 'N/A')) == mod_scelto:
+        sezioni_possibili.append(str(q.get('sezione', 'N/A')))
+sezioni_possibili = ["Tutte"] + sorted(list(set(sezioni_possibili[1:])))
+sez_scelta = st.sidebar.selectbox("Sezione:", sezioni_possibili)
+
 cartelle_lista = ["Calderone", "Allenamento", "Campo sicuro", "Cassaforte"]
 cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte"] + cartelle_lista)
 
-# --- 4. LOGICA FILTRO BLINDATA ---
+# 4. LOGICA FILTRO BLINDATA
 def filtra_domande():
     risultato = []
     for q in db:
         k = u_key(q['id'])
         stat = st.session_state['global_stats'][k]
         
-        # Filtri ID e Range
         if specific_ids and str(q['id']) not in specific_ids: continue
         if not (start_range <= int(q['id']) <= end_range): continue
         
-        # Filtro Data
         if abilita_data and range_date:
             raw_date = stat.get('data_mod', '')
             date_possibili = estrai_date_possibili(raw_date)
-            
             match = False
             for d in date_possibili:
                 if isinstance(range_date, (list, tuple)):
@@ -192,12 +197,11 @@ def filtra_domande():
                         if d == range_date[0]: match = True; break
                 else:
                     if d == range_date: match = True; break
-            
             if not match: continue
 
-        # Altri Filtri
         if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
+        if sez_scelta != "Tutte" and str(q.get('sezione', 'N/A')) != sez_scelta: continue
         if cart_scelta != "Tutte" and stat["cartella"] != cart_scelta: continue
         
         risultato.append(q)
@@ -218,7 +222,7 @@ if modalita == "🎯 Active Recall":
 else:
     domande_filtrate = domande_filtrate_base
 
-# --- 5. VISUALIZZAZIONE ---
+# 5. VISUALIZZAZIONE
 st.title("🚀 Andromeda 4.0")
 if not domande_filtrate: st.warning("Nessuna domanda trovata coi filtri attuali."); st.stop()
 
@@ -231,7 +235,13 @@ k_q = u_key(q['id'])
 if 'current_q_id' not in st.session_state or st.session_state['current_q_id'] != q['id']:
     st.session_state['current_q_id'] = q['id']; st.session_state['answered'] = False
 
-st.markdown(f"**Domanda {q['id']}** | Modulo: `{q.get('modulo', 'N/A')}`")
+# INTESTAZIONE DOMANDA CON SEZIONI E SOTTOMODULI
+st.markdown(f"**Domanda {q['id']}**")
+mod_str = q.get('modulo', 'N/A')
+sez_str = q.get('sezione', 'N/A')
+sot_str = q.get('sottosezione', 'N/A')
+st.markdown(f"<span class='badge-info'>Modulo: {mod_str}</span> <span class='badge-info'>Sezione: {sez_str}</span> <span class='badge-info'>Sottosezione: {sot_str}</span>", unsafe_allow_html=True)
+
 if q.get('figura') == 'FIGURA':
     st.markdown("<div class='figura-alert'>⚠️ QUESTA DOMANDA CONTIENE UNA FIGURA</div>", unsafe_allow_html=True)
 
