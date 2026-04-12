@@ -5,19 +5,20 @@ import random
 import csv
 from datetime import datetime, timedelta
 
-# Configurazione Pagina
+# --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="Andromeda 4.0 - Training Center", layout="wide")
 
-# Link Google Apps Script
+# Link Google Apps Script per la sincronizzazione delle statistiche
 URL_MEMORIA = "https://script.google.com/macros/s/AKfycbycL7hgRkaDC0KSMsStCMkU8QZNhkAto5d1eLGDRRecpAoQl6V7ks4A48P-avYo2E6I/exec"
 
-# Funzioni utilità (Orario e Date)
+# --- FUNZIONI TEMPORALI (Fuso Orario Italiano) ---
 def get_now_italy():
     return datetime.utcnow() + timedelta(hours=2)
 
 def estrai_date_possibili(date_str):
+    """Gestisce i bug di inversione giorno/mese di Google Sheets"""
     date_str = str(date_str).strip()
-    if not date_str: return []
+    if not date_str or date_str == "": return []
     d_mod = None
     if "T" in date_str:
         try:
@@ -42,7 +43,7 @@ def estrai_date_possibili(date_str):
         except: pass
     return possibili
 
-# Stili CSS
+# --- STILI CSS ---
 st.markdown("""
 <style>
     .quesito-testo { font-size: 16pt; font-style: italic; padding-top: 10px; padding-bottom: 20px; }
@@ -52,12 +53,13 @@ st.markdown("""
         color: #E65100; font-size: 14pt; font-weight: bold; margin-bottom: 15px; border-radius: 8px;
     }
     .badge-info {
-        background-color: #E3F2FD; color: #1565C0; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-right: 5px; border: 1px solid #BBDEFB;
+        background-color: #E3F2FD; color: #1565C0; padding: 4px 8px; border-radius: 4px; 
+        font-size: 12px; font-weight: bold; margin-right: 5px; border: 1px solid #BBDEFB;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 1. ACCESSO E SICUREZZA
+# --- 1. ACCESSO E SICUREZZA ---
 if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
 
@@ -87,7 +89,7 @@ if st.session_state.get('logged_in_user') is None:
             else: st.error("❌ Password errata.")
     st.stop()
 
-# 2. CARICAMENTO DATI
+# --- 2. CARICAMENTO DATI ---
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
@@ -130,7 +132,7 @@ if 'global_stats' not in st.session_state:
             if k not in st.session_state['global_stats']:
                 st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
-# 3. SIDEBAR CON FILTRI TRIPLE CASCATA
+# --- 3. SIDEBAR (FILTRI COMPLETI) ---
 st.sidebar.success(f"👤 Account: **{st.session_state.get('logged_in_user')}**")
 if st.sidebar.button("🚪 Logout"):
     st.session_state['logged_in_user'] = None
@@ -140,21 +142,31 @@ st.sidebar.markdown("---")
 modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("📅 Filtro Temporale")
+abilita_data = st.sidebar.checkbox("Filtra per data")
+range_date = st.sidebar.date_input("Periodo:", value=[]) if abilita_data else []
+
+st.sidebar.subheader("🎯 Filtri Numerici")
+ids_input = st.sidebar.text_input("ID specifici (es: 1, 150):", "")
+specific_ids = [s.strip() for s in ids_input.split(",") if s.strip()]
+c_n1, c_n2 = st.sidebar.columns(2)
+start_range = c_n1.number_input("Da ID:", 1, 3000, 1)
+end_range = c_n2.number_input("A ID:", 1, 3000, 3000)
+
 st.sidebar.subheader("📂 Filtri Didattici")
+search_term = st.sidebar.text_input("🔍 Cerca parola:", "").lower()
 
-# Filtro 1: Modulo
+# Tripla Cascata Dinamica
 mod_list = ["Tutti"] + sorted(list(set([str(q.get('modulo', 'N/A')) for q in db])))
-mod_scelto = st.sidebar.selectbox("Scegli Modulo:", mod_list)
+mod_scelto = st.sidebar.selectbox("Modulo:", mod_list)
 
-# Filtro 2: Sezione (Dipende dal Modulo)
 sez_list = ["Tutte"]
 for q in db:
     if mod_scelto == "Tutti" or str(q.get('modulo')) == mod_scelto:
         sez_list.append(str(q.get('sezione', 'N/A')))
 sez_list = ["Tutte"] + sorted(list(set(sez_list[1:])))
-sez_scelta = st.sidebar.selectbox("Scegli Sezione:", sez_list)
+sez_scelta = st.sidebar.selectbox("Sezione:", sez_list)
 
-# Filtro 3: Sottomodulo (Dipende dalla Sezione)
 sot_list = ["Tutti"]
 for q in db:
     match_mod = (mod_scelto == "Tutti" or str(q.get('modulo')) == mod_scelto)
@@ -162,32 +174,57 @@ for q in db:
     if match_mod and match_sez:
         sot_list.append(str(q.get('sottosezione', 'N/A')))
 sot_list = ["Tutti"] + sorted(list(set(sot_list[1:])))
-sot_scelto = st.sidebar.selectbox("Scegli Sottomodulo:", sot_list)
+sot_scelto = st.sidebar.selectbox("Sottomodulo:", sot_list)
 
-st.sidebar.markdown("---")
-cart_scelta = st.sidebar.selectbox("Cartella di studio:", ["Tutte", "Calderone", "Allenamento", "Campo sicuro", "Cassaforte"])
+cart_scelta = st.sidebar.selectbox("Cartella:", ["Tutte", "Calderone", "Allenamento", "Campo sicuro", "Cassaforte"])
 
-search_term = st.sidebar.text_input("🔍 Cerca parola chiave:", "").lower()
-
-# 4. LOGICA FILTRO
+# --- 4. LOGICA FILTRO COMPLETA ---
 def filtra_domande():
     risultato = []
     for q in db:
         k = u_key(q['id'])
         stat = st.session_state['global_stats'][k]
         
+        if specific_ids and str(q['id']) not in specific_ids: continue
+        if not (start_range <= int(q['id']) <= end_range): continue
+        
+        # Logica Data
+        if abilita_data and range_date:
+            raw_date = stat.get('data_mod', '')
+            date_possibili = estrai_date_possibili(raw_date)
+            match = False
+            for d in date_possibili:
+                if isinstance(range_date, (list, tuple)):
+                    if len(range_date) == 2 and range_date[0] <= d <= range_date[1]: match = True; break
+                    elif len(range_date) == 1 and d == range_date[0]: match = True; break
+                elif d == range_date: match = True; break
+            if not match: continue
+
+        if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         if mod_scelto != "Tutti" and str(q.get('modulo')) != mod_scelto: continue
         if sez_scelta != "Tutte" and str(q.get('sezione')) != sez_scelta: continue
         if sot_scelto != "Tutti" and str(q.get('sottosezione')) != sot_scelto: continue
         if cart_scelta != "Tutte" and stat["cartella"] != cart_scelta: continue
-        if search_term and search_term not in (q['testo'] + " ".join(q['opzioni'].values())).lower(): continue
         
         risultato.append(q)
     return risultato
 
-domande_filtrate = filtra_domande()
+domande_filtrate_base = filtra_domande()
 
-# 5. VISUALIZZAZIONE
+if modalita == "🎯 Active Recall":
+    if not domande_filtrate_base: st.stop()
+    if 'sim_ids' not in st.session_state:
+        st.sidebar.warning("Genera un nuovo quiz")
+        n_q = st.sidebar.number_input("Numero quesiti:", 1, len(domande_filtrate_base), 10)
+        if st.sidebar.button("🎲 Avvia Quiz"):
+            st.session_state['sim_ids'] = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
+            st.session_state['indice'] = 0; st.rerun()
+        st.stop()
+    domande_filtrate = [q for q in db if q['id'] in st.session_state.get('sim_ids', [])]
+else:
+    domande_filtrate = domande_filtrate_base
+
+# --- 5. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
 if not domande_filtrate: st.warning("Nessuna domanda trovata."); st.stop()
 
@@ -200,7 +237,7 @@ k_q = u_key(q['id'])
 if 'current_q_id' not in st.session_state or st.session_state['current_q_id'] != q['id']:
     st.session_state['current_q_id'] = q['id']; st.session_state['answered'] = False
 
-# Intestazione con Badge
+# Badges di Intestazione
 st.markdown(f"**Domanda {q['id']}**")
 st.markdown(f"""
     <span class='badge-info'>M: {q.get('modulo')}</span>
