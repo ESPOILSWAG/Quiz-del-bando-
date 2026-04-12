@@ -676,13 +676,16 @@
     },
     {
         "id": 46,
-        "testo": "⚠️ [QUESITO DA VERIFICARE] Testo originale non allineato nel PDF.",
+        "testo": "Che cosa deve obbligatoriamente annotare il farmacista in calce
+alle ricette in triplice copia a ricalco per stupefacenti?",
         "opzioni": {
-            "a": "Da definire",
-            "b": "Da definire",
-            "c": "Da definire",
-            "d": "Da definire",
-            "e": "Da definire"
+            "a": "nulla",
+            "b": "gli estremi di un documento d’identità dell’acquirente, solo nel caso in
+cui non lo conosca",
+            "c": "gli estremi di un documento di riconoscimento dell’ acquirente",
+            "d": "gli estremi del buono-acquisto",
+            "e": "gli estremi di un documento di riconoscimento dell’intestatario della
+ricetta"
         },
         "corretta": "c",
         "modulo": "2",
