@@ -1,7 +1,6 @@
 import streamlit as st
 import json
 import requests
-import random
 import csv
 from datetime import datetime, timedelta
 
@@ -139,9 +138,6 @@ if st.sidebar.button("🚪 Logout"):
     st.rerun()
 
 st.sidebar.markdown("---")
-modalita = st.sidebar.radio("🧠 Modalità:", ["📚 Esplorazione Libera", "🎯 Active Recall"])
-
-st.sidebar.markdown("---")
 st.sidebar.subheader("📅 Filtro Temporale")
 abilita_data = st.sidebar.checkbox("Filtra per data")
 range_date = st.sidebar.date_input("Periodo:", value=[]) if abilita_data else []
@@ -209,20 +205,7 @@ def filtra_domande():
         risultato.append(q)
     return risultato
 
-domande_filtrate_base = filtra_domande()
-
-if modalita == "🎯 Active Recall":
-    if not domande_filtrate_base: st.stop()
-    if 'sim_ids' not in st.session_state:
-        st.sidebar.warning("Genera un nuovo quiz")
-        n_q = st.sidebar.number_input("Numero quesiti:", 1, len(domande_filtrate_base), 10)
-        if st.sidebar.button("🎲 Avvia Quiz"):
-            st.session_state['sim_ids'] = [q['id'] for q in random.sample(domande_filtrate_base, n_q)]
-            st.session_state['indice'] = 0; st.rerun()
-        st.stop()
-    domande_filtrate = [q for q in db if q['id'] in st.session_state.get('sim_ids', [])]
-else:
-    domande_filtrate = domande_filtrate_base
+domande_filtrate = filtra_domande()
 
 # --- 5. VISUALIZZAZIONE ---
 st.title("🚀 Andromeda 4.0")
