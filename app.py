@@ -237,7 +237,7 @@ scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: 
 
 if scelta and not st.session_state.get('answered', False):
     st.session_state['answered'] = True
-    st.session_state['global_stats'][k_q]["data_mod"] = get_now_italy().strftime("%Y-%m-%d")
+    # Abbiamo rimosso l'aggiornamento istantaneo della data qui!
     if scelta == q['corretta']:
         st.session_state['esito'] = "ok"; st.session_state['global_stats'][k_q]["corrette"] += 1
     else:
