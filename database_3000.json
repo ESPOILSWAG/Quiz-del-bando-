@@ -1299,7 +1299,7 @@
             "d": "è consentito solo nell’ipotesi di forza maggiore",
             "e": "è consentito previa autorizzazione dell’Ordine Provinciale dei Farmacisti"
         },
-        "corretta": "c",
+        "corretta": "a",
         "modulo": "2",
         "sezione": "Burocrazia",
         "sottosezione": "N.S."
@@ -6654,7 +6654,7 @@
             "d": "ipotensione arteriosa",
             "e": "enuresi notturna"
         },
-        "corretta": "b",
+        "corretta": "c",
         "modulo": "3",
         "sezione": "Farmacodinamica",
         "sottosezione": "N.S."
@@ -6699,7 +6699,7 @@
             "d": "si, ma possono effettuare esclusivamente prestazioni di primo livello",
             "e": "si, ma possono effettuare esclusivamente prestazioni di secondo livello"
         },
-        "corretta": "a",
+        "corretta": "b",
         "modulo": "2",
         "sezione": "Burocrazia",
         "sottosezione": "N.S."
@@ -6714,7 +6714,7 @@
             "d": "acido etacrinico",
             "e": "spironolattone"
         },
-        "corretta": "b",
+        "corretta": "e",
         "modulo": "3",
         "sezione": "Farmacodinamica",
         "sottosezione": "N.S."
@@ -7029,7 +7029,7 @@
             "d": "eruzioni cutanee molto serie",
             "e": "nessuno di quelli indicati"
         },
-        "corretta": "b",
+        "corretta": "c",
         "modulo": "3",
         "sezione": "Farmacodinamica",
         "sottosezione": "N.S."
@@ -9924,7 +9924,7 @@
             "d": "annotando le sole giacenze",
             "e": "la chiusura non è giornaliera, ma annuale"
         },
-        "corretta": "c",
+        "corretta": "e",
         "modulo": "2",
         "sezione": "Ricette",
         "sottosezione": "stupefacenti"
@@ -22884,7 +22884,7 @@
             "d": "sì, purchè il dato corretto rimanga sempre leggibile",
             "e": "sì, purchè la correzione venga segnalata all'A.S.L. di competenza"
         },
-        "corretta": "e",
+        "corretta": "d",
         "modulo": "2",
         "sezione": "Ricette",
         "sottosezione": "stupefacenti"
