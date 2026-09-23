@@ -109,14 +109,14 @@ def carica_database():
 
 def carica_statistiche():
     try:
-        r = requests.get(URL_MEMORIA, timeout=10)
+        r = requests.get(URL_MEMORIA, timeout=30) # TIMEOUT AUMENTATO A 30 SECONDI
         dati = r.json()
         return {str(row[0]): {"corrette": int(row[1]), "errate": int(row[2]), "cartella": str(row[3]), "data_mod": str(row[4]) if len(row) > 4 else ""} for row in dati[1:]}
     except: return None
 
 def salva_statistiche(stats):
     payload = [{"id": k, "corrette": v['corrette'], "errate": v['errate'], "cartella": v['cartella'], "data_modifica": v.get('data_mod', '')} for k, v in stats.items()]
-    try: requests.post(URL_MEMORIA, json=payload, timeout=15); return True
+    try: requests.post(URL_MEMORIA, json=payload, timeout=30); return True # TIMEOUT AUMENTATO A 30 SECONDI
     except: return False
 
 def u_key(base_id):
