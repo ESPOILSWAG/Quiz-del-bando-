@@ -92,7 +92,21 @@ if st.session_state.get('logged_in_user') is None:
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
-            db = json.load(f)
+            db = carica_database()
+if 'global_stats' not in st.session_state:
+    with st.spinner("Sincronizzazione con il database in corso..."):
+        remote = carica_statistiche()
+        
+    if remote is None:
+        # Se Google non risponde, l'app si ferma invece di resettare tutto!
+        st.error("⚠️ Errore di comunicazione con Google Drive. I salvataggi non sono stati caricati. Attendi 10 secondi e ricarica la pagina.")
+        st.stop()
+    else:
+        st.session_state['global_stats'] = remote
+        for q in db:
+            for k in [str(q['id']), f"{q['id']}_P"]:
+                if k not in st.session_state['global_stats']:
+                    st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
     except: return []
     mappatura_figure = {}
     try:
