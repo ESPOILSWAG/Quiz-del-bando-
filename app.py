@@ -92,21 +92,7 @@ if st.session_state.get('logged_in_user') is None:
 def carica_database():
     try:
         with open('database_3000.json', 'r', encoding='utf-8') as f:
-            db = carica_database()
-if 'global_stats' not in st.session_state:
-    with st.spinner("Sincronizzazione con il database in corso..."):
-        remote = carica_statistiche()
-        
-    if remote is None:
-        # Se Google non risponde, l'app si ferma invece di resettare tutto!
-        st.error("⚠️ Errore di comunicazione con Google Drive. I salvataggi non sono stati caricati. Attendi 10 secondi e ricarica la pagina.")
-        st.stop()
-    else:
-        st.session_state['global_stats'] = remote
-        for q in db:
-            for k in [str(q['id']), f"{q['id']}_P"]:
-                if k not in st.session_state['global_stats']:
-                    st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
+            db = json.load(f)
     except: return []
     mappatura_figure = {}
     try:
@@ -123,27 +109,35 @@ if 'global_stats' not in st.session_state:
 
 def carica_statistiche():
     try:
-        r = requests.get(URL_MEMORIA, timeout=30) # TIMEOUT AUMENTATO A 30 SECONDI
+        r = requests.get(URL_MEMORIA, timeout=30)
         dati = r.json()
         return {str(row[0]): {"corrette": int(row[1]), "errate": int(row[2]), "cartella": str(row[3]), "data_mod": str(row[4]) if len(row) > 4 else ""} for row in dati[1:]}
     except: return None
 
 def salva_statistiche(stats):
     payload = [{"id": k, "corrette": v['corrette'], "errate": v['errate'], "cartella": v['cartella'], "data_modifica": v.get('data_mod', '')} for k, v in stats.items()]
-    try: requests.post(URL_MEMORIA, json=payload, timeout=30); return True # TIMEOUT AUMENTATO A 30 SECONDI
+    try: requests.post(URL_MEMORIA, json=payload, timeout=30); return True
     except: return False
 
 def u_key(base_id):
     return str(base_id) if st.session_state.get('logged_in_user') == 'T' else f"{base_id}_P"
 
 db = carica_database()
+
+# --- SISTEMA SALVAVITA PER MANCATA SINCRONIZZAZIONE ---
 if 'global_stats' not in st.session_state:
-    remote = carica_statistiche()
-    st.session_state['global_stats'] = remote if remote else {}
-    for q in db:
-        for k in [str(q['id']), f"{q['id']}_P"]:
-            if k not in st.session_state['global_stats']:
-                st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
+    with st.spinner("Sincronizzazione con il database in corso..."):
+        remote = carica_statistiche()
+        
+    if remote is None:
+        st.error("⚠️ Errore di comunicazione con Google Drive. I salvataggi non sono stati caricati. Attendi 10 secondi e ricarica la pagina per non perdere i dati.")
+        st.stop()
+    else:
+        st.session_state['global_stats'] = remote
+        for q in db:
+            for k in [str(q['id']), f"{q['id']}_P"]:
+                if k not in st.session_state['global_stats']:
+                    st.session_state['global_stats'][k] = {"corrette": 0, "errate": 0, "cartella": "Calderone", "data_mod": ""}
 
 # --- 3. SIDEBAR (FILTRI COMPLETI) ---
 st.sidebar.success(f"👤 Account: **{st.session_state.get('logged_in_user')}**")
@@ -251,7 +245,6 @@ scelta = st.radio("Risposta:", list(q['opzioni'].keys()), format_func=lambda x: 
 
 if scelta and not st.session_state.get('answered', False):
     st.session_state['answered'] = True
-    # Abbiamo rimosso l'aggiornamento istantaneo della data qui!
     if scelta == q['corretta']:
         st.session_state['esito'] = "ok"; st.session_state['global_stats'][k_q]["corrette"] += 1
     else:
