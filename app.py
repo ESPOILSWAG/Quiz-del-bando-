@@ -15,31 +15,38 @@ def get_now_italy():
     return datetime.utcnow() + timedelta(hours=2)
 
 def estrai_date_possibili(date_str):
-    """Gestisce i bug di inversione giorno/mese di Google Sheets"""
+    """Gestisce le date eliminando i falsi positivi dell'inversione mese/giorno"""
     date_str = str(date_str).strip()
     if not date_str or date_str == "": return []
     d_mod = None
+    
+    # Se la data arriva nel formato ISO standard dall'API (con la "T" in mezzo), è infallibile.
     if "T" in date_str:
         try:
             dt_utc = datetime.strptime(date_str[:19], "%Y-%m-%dT%H:%M:%S")
             d_mod = (dt_utc + timedelta(hours=2)).date()
+            return [d_mod] # Restituisce SUBITO la data corretta senza creare "fantasmi"
         except:
-            try: d_mod = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
-            except: pass
-    else:
-        try:
-            if "-" in date_str:
-                p = date_str.split(" ")[0].split("-")
-                d_mod = datetime(int(p[0]), int(p[1]), int(p[2])).date() if len(p[0])==4 else datetime(int(p[2]), int(p[1]), int(p[0])).date()
-            elif "/" in date_str:
-                p = date_str.split(" ")[0].split("/")
-                d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
-        except: pass
+            pass
+
+    # Recupero di sicurezza per formati legacy senza "T"
+    try:
+        if "-" in date_str:
+            p = date_str.split(" ")[0].split("-")
+            d_mod = datetime(int(p[0]), int(p[1]), int(p[2])).date() if len(p[0])==4 else datetime(int(p[2]), int(p[1]), int(p[0])).date()
+        elif "/" in date_str:
+            p = date_str.split(" ")[0].split("/")
+            d_mod = datetime(int(p[2]), int(p[1]), int(p[0])).date() if len(p[2])==4 else datetime(int(p[0]), int(p[1]), int(p[2])).date()
+    except: pass
+    
     if not d_mod: return []
     possibili = [d_mod]
+    
+    # Manteniamo la regola dell'inversione SOLO se si tratta di vecchi salvataggi manuali ambigui
     if d_mod.day <= 12 and d_mod.day != d_mod.month:
         try: possibili.append(datetime(d_mod.year, d_mod.day, d_mod.month).date())
         except: pass
+        
     return possibili
 
 # --- STILI CSS ---
